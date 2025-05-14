@@ -9,9 +9,8 @@ namespace Chastitcy6
 {
     class Emitter
     {
-        public List<Point> gravityPoints = new List<Point>(); // тут буду хранится точки притяжения
+        public List<IImpactPoint> impactPoints = new List<IImpactPoint>(); // <<< ТАК ВОТ
 
-       
 
         List<Particle> particles = new List<Particle>();
         public int MousePositionX;
@@ -50,16 +49,9 @@ namespace Chastitcy6
                 else
                 {
 
-                    // каждая точка по-своему воздействует на вектор скорости
-                    foreach (var point in gravityPoints)
+                    foreach (var point in impactPoints)
                     {
-                        float gX = point.X - particle.X;
-                        float gY = point.Y - particle.Y;
-                        float r2 = (float)Math.Max(100, gX * gX + gY * gY); // ограничил
-                        float M = 100;
-
-                        particle.SpeedX += (gX) * M / r2;
-                        particle.SpeedY += (gY) * M / r2;
+                        point.ImpactParticle(particle);
                     }
                     // гравитация воздействует на вектор скорости, поэтому пересчитываем его
                     particle.SpeedX += GravitationX;
@@ -102,9 +94,9 @@ namespace Chastitcy6
                 particle.Draw(g);
             }
 
-            // рисую точки притяжения красными кружочками
-            foreach (var point in gravityPoints)
+            foreach (var point in impactPoints) // тут теперь  impactPoints
             {
+                /* это больше не надо
                 g.FillEllipse(
                     new SolidBrush(Color.Red),
                     point.X - 5,
@@ -112,6 +104,8 @@ namespace Chastitcy6
                     10,
                     10
                 );
+                */
+                point.Render(g); // это добавили
             }
         }
     }
