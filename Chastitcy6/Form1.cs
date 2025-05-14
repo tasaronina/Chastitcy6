@@ -7,14 +7,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using static Chastitcy6.Emitter;
 using static Chastitcy6.IImpactPoint;
 
 namespace Chastitcy6
 {
     public partial class Form1 : Form
     {
-       
-        Emitter emitter = new Emitter(); // добавили эмиттер
+
+        Emitter emitter; // тут убрали явное создание
 
         public Form1()
         {
@@ -22,8 +23,15 @@ namespace Chastitcy6
 
             // привязал изображение
             picDisplay.Image = new Bitmap(picDisplay.Width, picDisplay.Height);
+            
+            // а тут теперь вручную создаем
+            emitter = new TopEmitter
+            {
+                Width = picDisplay.Width,
+                GravitationY = 0.25f
+            };
 
-            // гравитон
+            /* // гравитон
             emitter.impactPoints.Add(new GravityPoint
             {
                 X = (float)(picDisplay.Width * 0.25),
@@ -43,12 +51,13 @@ namespace Chastitcy6
                 X = (float)(picDisplay.Width * 0.75),
                 Y = picDisplay.Height / 2
             });
+            */
 
         }
         // добавил функцию обновления состояния системы
-        
 
-        
+
+
         private void timer1_Tick(object sender, EventArgs e)
         {
             emitter.UpdateState(); // тут теперь обновляем эмиттер
