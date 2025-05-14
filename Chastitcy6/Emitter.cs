@@ -12,9 +12,13 @@ namespace Chastitcy6
         List<Particle> particles = new List<Particle>();
         public int MousePositionX;
         public int MousePositionY;
+        public float GravitationX = 0;
+        public float GravitationY = 1; // пусть гравитация будет силой один пиксель за такт, нам хватит
+
 
         public void UpdateState()
         {
+
             foreach (var particle in particles)
             {
                 particle.Life -= 1; // уменьшаю здоровье
@@ -25,6 +29,8 @@ namespace Chastitcy6
                     particle.Life = 20 + Particle.rand.Next(100);
                     // новое начальное расположение частицы — это то, куда указывает курсор
                     particle.X = MousePositionX;
+                    particle.Y = MousePositionY;
+
 
                     /* ЭТО ДОБАВЛЯЮ, тут сброс состояния частицы */
                     var direction = (double)Particle.rand.Next(360);
@@ -38,6 +44,12 @@ namespace Chastitcy6
                 }
                 else
                 {
+                    // гравитация воздействует на вектор скорости, поэтому пересчитываем его
+
+                    particle.SpeedX += GravitationX;
+                    particle.SpeedY += GravitationY;
+
+                    // это не трогаем
                     particle.X += particle.SpeedX;
                     particle.Y += particle.SpeedY;
                 }
