@@ -17,6 +17,8 @@ namespace Chastitcy6
         public int MousePositionY;
         public float GravitationX = 0;
         public float GravitationY = 0; // отключил
+        public int ParticlesCount = 500;
+
 
 
 
@@ -52,7 +54,7 @@ namespace Chastitcy6
             // генерирую не более 10 штук за тик
             for (var i = 0; i < 10; ++i)
             {
-                if (particles.Count < 500) // пока частиц меньше 500 генерируем новые
+                if (particles.Count < ParticlesCount) // пока частиц меньше 500 генерируем новые
                 {
                     /* ну и тут чуток подкрутили */
                     var particle = new ParticleColorful();
@@ -113,6 +115,7 @@ namespace Chastitcy6
         public class TopEmitter : Emitter
         {
             public int Width; // длина экрана
+            
 
             public override void ResetParticle(Particle particle)
             {
