@@ -18,6 +18,9 @@ namespace Chastitcy6
         List<Emitter> emitters = new List<Emitter>();
         Emitter emitter; // добавим поле для эмиттера
 
+        GravityPoint point1; // добавил поле под первую точку
+        GravityPoint point2; // добавил поле под вторую точку
+
         public Form1()
         {
             InitializeComponent();
@@ -40,6 +43,21 @@ namespace Chastitcy6
 
             emitters.Add(this.emitter); // все равно добавляю в список emitters, чтобы он рендерился и обновлялся
 
+            // привязываем гравитоны к полям
+            point1 = new GravityPoint
+            {
+                X = picDisplay.Width / 2 + 100,
+                Y = picDisplay.Height / 2,
+            };
+            point2 = new GravityPoint
+            {
+                X = picDisplay.Width / 2 - 100,
+                Y = picDisplay.Height / 2,
+            };
+
+            // привязываем поля к эмиттеру
+            emitter.impactPoints.Add(point1);
+            emitter.impactPoints.Add(point2);
 
         }
         // добавил функцию обновления состояния системы
@@ -72,6 +90,17 @@ namespace Chastitcy6
         {
             emitter.Direction = tbDirection.Value; // направлению эмиттера присваиваем значение ползунка 
             lblDirection.Text = $"{tbDirection.Value}°"; // добавил вывод значения
+        }
+
+        private void tbGraviton_Scroll(object sender, EventArgs e)
+        {
+            point1.Power = tbGraviton.Value;
+        }
+
+        private void tbGraviton2_Scroll(object sender, EventArgs e)
+        {
+            point2.Power = tbGraviton2.Value;
+
         }
     }
 }
