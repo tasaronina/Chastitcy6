@@ -16,8 +16,9 @@ namespace Chastitcy6
         public int MousePositionX;
         public int MousePositionY;
         public float GravitationX = 0;
-        public float GravitationY = 0; // отключил
+        public float GravitationY = 1.0f;
         public int ParticlesCount = 500;
+
 
 
 
@@ -35,6 +36,9 @@ namespace Chastitcy6
         public Color ColorFrom = Color.White; // начальный цвет частицы
         public Color ColorTo = Color.FromArgb(0, Color.Black); // конечный цвет частиц
 
+
+        public int ParticlesPerTick = 1; // добавил новое поле
+
         /* добавил метод */
         public virtual Particle CreateParticle()
         {
@@ -47,14 +51,18 @@ namespace Chastitcy6
 
         public void UpdateState()
         {
+            int particlesToCreate = ParticlesPerTick; // фиксируем счетчик сколько частиц нам создавать за тик
 
             foreach (var particle in particles)
             {
-                particle.Life -= 1; // уменьшаю здоровье
-                                    // если здоровье кончилось
-                if (particle.Life < 0)
+                if (particle.Life <= 0)
                 {
-                    ResetParticle(particle); // заменили этот блок на вызов сброса частицы 
+                    // если частица «умерла», ресетим её (до лимита на тик)
+                    if (particlesToCreate > 0)
+                    {
+                        particlesToCreate--;
+                        ResetParticle(particle);
+                    }
                 }
                 else
                 {
@@ -73,20 +81,15 @@ namespace Chastitcy6
                 }
             }
 
-            // добавил генерацию частиц
-            // генерирую не более 10 штук за тик
-            for (var i = 0; i < 10; ++i)
+            // второй цикл меняем на while, 
+            // этот новый цикл также будет срабатывать только в самом начале работы эмиттера
+            // собственно пока не накопится критическая масса частиц
+            while (particlesToCreate >= 1)
             {
-                if (particles.Count < ParticlesCount) // пока частиц меньше 500 генерируем новые
-                {
-                    var particle = CreateParticle(); // и собственно теперь тут его вызываем
-                    ResetParticle(particle);
-                    particles.Add(particle);
-                }
-                else
-                {
-                    break; // а если частиц уже 500 штук, то ничего не генерирую
-                }
+                particlesToCreate -= 1;
+                var particle = CreateParticle();
+                ResetParticle(particle);
+                particles.Add(particle);
             }
         }
 
@@ -141,14 +144,21 @@ namespace Chastitcy6
 
             public override void ResetParticle(Particle particle)
             {
-                base.ResetParticle(particle); // вызываем базовый сброс частицы, там жизнь переопределяется и все такое
+                particle.Life = Particle.rand.Next(LifeMin, LifeMax);
 
-                // а теперь тут уже подкручиваем параметры движения
-                particle.X = Particle.rand.Next(Width); // позиция X -- произвольная точка от 0 до Width
-                particle.Y = 0;  // ноль -- это верх экрана 
+                particle.X = X;
+                particle.Y = Y;
 
-                particle.SpeedY = 1; // падаем вниз по умолчанию
-                particle.SpeedX = Particle.rand.Next(-2, 2); // разброс влево и вправа у частиц 
+                var direction = Direction
+                    + (double)Particle.rand.Next(Spreading)
+                    - Spreading / 2;
+
+                var speed = Particle.rand.Next(SpeedMin, SpeedMax);
+
+                particle.SpeedX = (float)(Math.Cos(direction / 180 * Math.PI) * speed);
+                particle.SpeedY = -(float)(Math.Sin(direction / 180 * Math.PI) * speed);
+
+                particle.Radius = Particle.rand.Next(RadiusMin, RadiusMax);
             }
         }
 
