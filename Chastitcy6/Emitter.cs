@@ -1,172 +1,129 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Chastitcy6
 {
-    class Emitter
+    // эмиттер генерирует частицы, обновляет их состояние и рисует
+    public class Emitter
     {
-        public List<IImpactPoint> impactPoints = new List<IImpactPoint>(); // <<< ТАК ВОТ
+        // список точек воздействия (гравитоны, телепорты и прочие импакт-поинты)
+        public List<IImpactPoint> impactPoints = new List<IImpactPoint>();
 
+        // внутренний список самих частиц
+        private List<Particle> particles = new List<Particle>();
 
-        List<Particle> particles = new List<Particle>();
-        public int MousePositionX;
-        public int MousePositionY;
-        public float GravitationX = 0;
-        public float GravitationY = 1.0f;
-        public int ParticlesCount = 500;
+        // генератор случайных чисел для эмиттера
+        private static readonly Random rand = new Random();
 
+        // координаты центра эмиттера
+        public int X;
+        public int Y;
 
+        // направление вылета (в градусах) и разброс
+        public int Direction = 0;
+        public int Spreading = 360;
 
+        // диапазон скоростей частиц
+        public int SpeedMin = 1;
+        public int SpeedMax = 10;
 
-        public int X; // координата X центра эмиттера, будем ее использовать вместо MousePositionX
-        public int Y; // соответствующая координата Y 
-        public int Direction = 0; // вектор направления в градусах куда сыпет эмиттер
-        public int Spreading = 360; // разброс частиц относительно Direction
-        public int SpeedMin = 1; // начальная минимальная скорость движения частицы
-        public int SpeedMax = 10; // начальная максимальная скорость движения частицы
-        public int RadiusMin = 2; // минимальный радиус частицы
-        public int RadiusMax = 10; // максимальный радиус частицы
-        public int LifeMin = 20; // минимальное время жизни частицы
-        public int LifeMax = 100; // максимальное время жизни частицы
+        // диапазон радиусов частиц
+        public int RadiusMin = 2;
+        public int RadiusMax = 10;
 
-        public Color ColorFrom = Color.White; // начальный цвет частицы
-        public Color ColorTo = Color.FromArgb(0, Color.Black); // конечный цвет частиц
+        // диапазон времени жизни частиц
+        public int LifeMin = 20;
+        public int LifeMax = 100;
 
+        // сколько частиц создаётся за один тик
+        public int ParticlesPerTick = 1;
 
-        public int ParticlesPerTick = 1; // добавил новое поле
+        // цветовой градиент частиц: от ColorFrom → к ColorTo
+        public Color ColorFrom = Color.White;
+        public Color ColorTo = Color.FromArgb(0, Color.Black);
 
-        /* добавил метод */
+        // создаёт новый экземпляр цветной частицы
         public virtual Particle CreateParticle()
         {
-            var particle = new ParticleColorful();
-            particle.FromColor = ColorFrom;
-            particle.ToColor = ColorTo;
-
-            return particle;
+            var p = new ParticleColorful();
+            p.FromColor = ColorFrom;
+            p.ToColor = ColorTo;
+            return p;
         }
 
+        // сбрасывает параметры частицы в начальное состояние
+        public void ResetParticle(Particle p)
+        {
+            // задаём случайную продолжительность жизни
+            p.Life = rand.Next(LifeMin, LifeMax);
+
+            // возвращаем частицу в центр эмиттера
+            p.X = X;
+            p.Y = Y;
+
+            // рассчитываем направление с учётом разброса
+            double dir = Direction + rand.Next(Spreading) - Spreading / 2.0;
+            float speed = rand.Next(SpeedMin, SpeedMax);
+
+            // назначаем вектор скорости
+            p.SpeedX = (float)(Math.Cos(dir / 180 * Math.PI) * speed);
+            p.SpeedY = -(float)(Math.Sin(dir / 180 * Math.PI) * speed);
+
+            // случайный радиус
+            p.Radius = rand.Next(RadiusMin, RadiusMax);
+        }
+
+        // обновляет положение, жизнь и создаёт новые частицы
         public void UpdateState()
         {
-            int particlesToCreate = ParticlesPerTick; // фиксируем счетчик сколько частиц нам создавать за тик
+            int toCreate = ParticlesPerTick;
 
-            foreach (var particle in particles)
+            // пробегаем по всем частицам
+            foreach (var p in particles)
             {
-                if (particle.Life <= 0)
+                if (p.Life <= 0)
                 {
-                    // если частица «умерла», ресетим её (до лимита на тик)
-                    if (particlesToCreate > 0)
+                    // если частица «умерла» и ещё можно создать новую
+                    if (toCreate > 0)
                     {
-                        particlesToCreate--;
-                        ResetParticle(particle);
+                        toCreate--;
+                        ResetParticle(p);
                     }
                 }
                 else
                 {
-
-                    /* теперь двигаю вначале */
-                    particle.X += particle.SpeedX;
-                    particle.Y += particle.SpeedY;
-
-                    particle.Life -= 1;
+                    // применяем все точки воздействия
                     foreach (var point in impactPoints)
-                    {
-                        point.ImpactParticle(particle);
-                    }
+                        point.ImpactParticle(p);
 
-                    particle.SpeedX += GravitationX;
-                    particle.SpeedY += GravitationY;
+                    // перемещаем частицу
+                    p.X += p.SpeedX;
+                    p.Y += p.SpeedY;
 
-                    /* это уехало вверх
-                    particle.X += particle.SpeedX;
-                    particle.Y += particle.SpeedY; */
+                    // уменьшаем жизнь
+                    p.Life--;
                 }
             }
 
-            // второй цикл меняем на while, 
-            // этот новый цикл также будет срабатывать только в самом начале работы эмиттера
-            // собственно пока не накопится критическая масса частиц
-            while (particlesToCreate >= 1)
+            // если остались «билеты» на создание, порождаем новые частицы
+            while (toCreate > 0)
             {
-                particlesToCreate -= 1;
-                var particle = CreateParticle();
-                ResetParticle(particle);
-                particles.Add(particle);
+                toCreate--;
+                var p = CreateParticle();
+                ResetParticle(p);
+                particles.Add(p);
             }
         }
 
+        // рисует все частицы и все точки воздействия
         public void Render(Graphics g)
         {
-            // ну тут так и быть уж сам впишу...
-            // это то же самое что на форме в методе Render
-            foreach (var particle in particles)
-            {
-                particle.Draw(g);
-            }
+            foreach (var p in particles)
+                p.Draw(g);
 
-            foreach (var point in impactPoints) // тут теперь  impactPoints
-            {
-                /* это больше не надо
-                g.FillEllipse(
-                    new SolidBrush(Color.Red),
-                    point.X - 5,
-                    point.Y - 5,
-                    10,
-                    10
-                );
-                */
-                point.Render(g); // это добавили
-            }
+            foreach (var point in impactPoints)
+                point.Render(g);
         }
-
-        // добавил новый метод, виртуальным, чтобы переопределять можно было
-        public virtual void ResetParticle(Particle particle)
-        {
-            particle.Life = Particle.rand.Next(LifeMin, LifeMax);
-
-            particle.X = X;
-            particle.Y = Y;
-
-            var direction = Direction
-                + (double)Particle.rand.Next(Spreading)
-                - Spreading / 2;
-
-            var speed = Particle.rand.Next(SpeedMin, SpeedMax);
-
-            particle.SpeedX = (float)(Math.Cos(direction / 180 * Math.PI) * speed);
-            particle.SpeedY = -(float)(Math.Sin(direction / 180 * Math.PI) * speed);
-
-            particle.Radius = Particle.rand.Next(RadiusMin, RadiusMax);
-        }
-
-        public class TopEmitter : Emitter
-        {
-            public int Width; // длина экрана
-            
-
-            public override void ResetParticle(Particle particle)
-            {
-                particle.Life = Particle.rand.Next(LifeMin, LifeMax);
-
-                particle.X = X;
-                particle.Y = Y;
-
-                var direction = Direction
-                    + (double)Particle.rand.Next(Spreading)
-                    - Spreading / 2;
-
-                var speed = Particle.rand.Next(SpeedMin, SpeedMax);
-
-                particle.SpeedX = (float)(Math.Cos(direction / 180 * Math.PI) * speed);
-                particle.SpeedY = -(float)(Math.Sin(direction / 180 * Math.PI) * speed);
-
-                particle.Radius = Particle.rand.Next(RadiusMin, RadiusMax);
-            }
-        }
-
     }
-
 }

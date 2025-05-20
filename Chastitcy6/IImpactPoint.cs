@@ -1,76 +1,53 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Chastitcy6
 {
+    // точка воздействия на частицы (абстрактный базовый класс)
     public abstract class IImpactPoint
     {
-        public float X; // ну точка же, вот и две координаты
+        // координата x центра точки воздействия
+        public float X;
+        // координата y центра точки воздействия
         public float Y;
 
-        // абстрактный метод с помощью которого будем изменять состояние частиц
-        // например притягивать
+        // вызывается для каждой частицы, чтобы изменить её скорость или позицию
         public abstract void ImpactParticle(Particle particle);
 
-        // базовый класс для отрисовки точечки
+        // отрисовка точки воздействия по умолчанию — красный кружок радиусом 5px
         public virtual void Render(Graphics g)
         {
-            g.FillEllipse(
-                    new SolidBrush(Color.Red),
-                    X - 5,
-                    Y - 5,
-                    10,
-                    10
-                );
+            using (var brush = new SolidBrush(Color.Red))
+                g.FillEllipse(brush, X - 5, Y - 5, 10, 10);
         }
 
+        // гравитон: притягивает частицы к себе
         public class GravityPoint : IImpactPoint
         {
-            public int Power = 100; // сила притяжения
+            // сила притяжения (чем выше, тем сильнее эффект)
+            public int Power = 100;
 
-            // а сюда по сути скопировали с минимальными правками то что было в UpdateState
+            // притягиваем частицу, изменяя её скорость
             public override void ImpactParticle(Particle particle)
             {
-                float gX = X - particle.X;
-                float gY = Y - particle.Y;
+                // вектор от частицы к центру гравитона
+                float dx = X - particle.X;
+                float dy = Y - particle.Y;
 
-                double r = Math.Sqrt(gX * gX + gY * gY); // считаем расстояние от центра точки до центра частицы
-                if (r + particle.Radius < Power / 2) // если частица оказалось внутри окружности
-                {
-                    // то притягиваем ее
-                    float r2 = (float)Math.Max(100, gX * gX + gY * gY);
-                    particle.SpeedX += gX * Power / r2;
-                    particle.SpeedY += gY * Power / r2;
-                }
+                // квадрат расстояния, минимум 100, чтобы не было «дёрганий»
+                float dist2 = Math.Max(100, dx * dx + dy * dy);
+
+                // ускорение обратно пропорционально расстоянию в квадрате
+                particle.SpeedX += dx * Power / dist2;
+                particle.SpeedY += dy * Power / dist2;
             }
 
+            // рисуем гравитон таким же красным кружком
             public override void Render(Graphics g)
             {
-                using (var b = new SolidBrush(Color.Red))
-                    g.FillEllipse(b, X - 5, Y - 5, 10, 10);
+                using (var brush = new SolidBrush(Color.Red))
+                    g.FillEllipse(brush, X - 5, Y - 5, 10, 10);
             }
         }
-
-        public class AntiGravityPoint : IImpactPoint
-        {
-            public int Power = 100; // сила отторжения
-
-            // а сюда по сути скопировали с минимальными правками то что было в UpdateState
-            public override void ImpactParticle(Particle particle)
-            {
-                float gX = X - particle.X;
-                float gY = Y - particle.Y;
-                float r2 = (float)Math.Max(100, gX * gX + gY * gY);
-
-                particle.SpeedX -= gX * Power / r2; // тут минусики вместо плюсов
-                particle.SpeedY -= gY * Power / r2; // и тут
-            }
-        }
-
-
     }
 }
