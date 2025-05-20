@@ -81,9 +81,16 @@ namespace Chastitcy6
         
         private void picDisplay_MouseMove(object sender, MouseEventArgs e)
         {
-            // а тут в эмиттер передаем положение мыфки
-            emitter.MousePositionX = e.X;
-            emitter.MousePositionY = e.Y;
+            // это не трогаем
+            foreach (var emitter in emitters)
+            {
+                emitter.MousePositionX = e.X;
+                emitter.MousePositionY = e.Y;
+            }
+
+            // а тут передаем положение мыши, в положение гравитона
+            point2.X = e.X;
+            point2.Y = e.Y;
         }
 
         private void tbDirection_Scroll(object sender, EventArgs e)
