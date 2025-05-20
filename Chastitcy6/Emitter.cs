@@ -67,17 +67,22 @@ namespace Chastitcy6
                 else
                 {
 
+                    /* теперь двигаю вначале */
+                    particle.X += particle.SpeedX;
+                    particle.Y += particle.SpeedY;
+
+                    particle.Life -= 1;
                     foreach (var point in impactPoints)
                     {
                         point.ImpactParticle(particle);
                     }
-                    // гравитация воздействует на вектор скорости, поэтому пересчитываем его
+
                     particle.SpeedX += GravitationX;
                     particle.SpeedY += GravitationY;
 
-                    // это не трогаем
+                    /* это уехало вверх
                     particle.X += particle.SpeedX;
-                    particle.Y += particle.SpeedY;
+                    particle.Y += particle.SpeedY; */
                 }
             }
 
