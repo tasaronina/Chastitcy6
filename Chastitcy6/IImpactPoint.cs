@@ -50,27 +50,8 @@ namespace Chastitcy6
 
             public override void Render(Graphics g)
             {
-                // буду рисовать окружность с диаметром равным Power
-                g.DrawEllipse(
-                       new Pen(Color.Red),
-                       X - Power / 2,
-                       Y - Power / 2,
-                       Power,
-                       Power
-                   );
-
-                var stringFormat = new StringFormat(); // создаем экземпляр класса
-                stringFormat.Alignment = StringAlignment.Center; // выравнивание по горизонтали
-                stringFormat.LineAlignment = StringAlignment.Center; // выравнивание по вертикали
-
-                g.DrawString(
-                    $"Я гравитон\nc силой {Power}", // надпись, можно перенос строки вставлять (если вы Катя, то может не работать и надо использовать \r\n)
-                    new Font("Verdana", 10), // шрифт и его размер
-                    new SolidBrush(Color.White), // цвет шрифта
-                    X, // расположение в пространстве
-                    Y,
-                    stringFormat // передаем инфу о выравнивании
-                );
+                using (var b = new SolidBrush(Color.Red))
+                    g.FillEllipse(b, X - 5, Y - 5, 10, 10);
             }
         }
 

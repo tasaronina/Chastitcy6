@@ -1,113 +1,84 @@
-﻿using System;
+﻿using Chastitcy6;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using static Chastitcy6.Emitter;
-using static Chastitcy6.IImpactPoint;
+using System;
 
 namespace Chastitcy6
 {
     public partial class Form1 : Form
     {
-
         List<Emitter> emitters = new List<Emitter>();
-        Emitter emitter; // добавим поле для эмиттера
-
-        GravityPoint point1; // добавил поле под первую точку
-        GravityPoint point2; // добавил поле под вторую точку
+        Emitter emitter;
+        Teleport teleport;      // ← один портал
 
         public Form1()
         {
             InitializeComponent();
-
-            // привязал изображение
             picDisplay.Image = new Bitmap(picDisplay.Width, picDisplay.Height);
 
-            this.emitter = new Emitter // создаю эмиттер и привязываю его к полю emitter
+            // 1) Эмиттер
+            emitter = new Emitter
             {
-                Direction = 0,
-                Spreading = 10,
-                SpeedMin = 10,
-                SpeedMax = 10,
+                Direction = -90,
+                Spreading = 45,
+                SpeedMin = 8,
+                SpeedMax = 14,
+                ParticlesPerTick = 30,
                 ColorFrom = Color.Gold,
                 ColorTo = Color.FromArgb(0, Color.Red),
-                ParticlesPerTick = 10,
                 X = picDisplay.Width / 2,
                 Y = picDisplay.Height / 2,
             };
+            emitters.Add(emitter);
 
-            emitters.Add(this.emitter); // все равно добавляю в список emitters, чтобы он рендерился и обновлялся
-
-            // привязываем гравитоны к полям
-            point1 = new GravityPoint
+            // 2) Единственный портал: красный вход → фиолетовый выход
+            teleport = new Teleport
             {
-                X = picDisplay.Width / 2 + 100,
+                X = picDisplay.Width / 2 - 100,  // стартовый красный
                 Y = picDisplay.Height / 2,
+                ExitX = picDisplay.Width / 2 + 100,  // фиолетовый
+                ExitY = picDisplay.Height / 2,
+                Radius = 50,
+                EntryPenColor = Color.Red,
+                ExitPenColor = Color.MediumPurple,
+                LinePenColor = Color.Green
             };
-            point2 = new GravityPoint
-            {
-                X = picDisplay.Width / 2 - 100,
-                Y = picDisplay.Height / 2,
-            };
+            emitter.impactPoints.Add(teleport);
 
-            // привязываем поля к эмиттеру
-            emitter.impactPoints.Add(point1);
-            emitter.impactPoints.Add(point2);
+            // 3) Подписываемся на клики
+            picDisplay.MouseClick += picDisplay_MouseClick;
 
+            // 4) Таймер и старт
+            timer1.Interval = 40;
+            timer1.Start();
         }
-        // добавил функцию обновления состояния системы
 
-
+        private void picDisplay_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                // движем красный вход
+                teleport.X = e.X;
+                teleport.Y = e.Y;
+            }
+            else if (e.Button == MouseButtons.Right)
+            {
+                // движем фиолетовый выход
+                teleport.ExitX = e.X;
+                teleport.ExitY = e.Y;
+            }
+        }
 
         private void timer1_Tick(object sender, EventArgs e)
         {
-            emitter.UpdateState(); // тут теперь обновляем эмиттер
-
-
+            emitter.UpdateState();
             using (var g = Graphics.FromImage(picDisplay.Image))
             {
-                g.Clear(Color.Black); // А ЕЩЕ ЧЕРНЫЙ ФОН СДЕЛАЮ
-                emitter.Render(g); // а тут теперь рендерим через эмиттер
+                g.Clear(Color.White);
+                emitter.Render(g);
             }
-
             picDisplay.Invalidate();
-        }
-
-        
-        private void picDisplay_MouseMove(object sender, MouseEventArgs e)
-        {
-            // это не трогаем
-            foreach (var emitter in emitters)
-            {
-                emitter.MousePositionX = e.X;
-                emitter.MousePositionY = e.Y;
-            }
-
-            // а тут передаем положение мыши, в положение гравитона
-            point2.X = e.X;
-            point2.Y = e.Y;
-        }
-
-        private void tbDirection_Scroll(object sender, EventArgs e)
-        {
-            emitter.Direction = tbDirection.Value; // направлению эмиттера присваиваем значение ползунка 
-            lblDirection.Text = $"{tbDirection.Value}°"; // добавил вывод значения
-        }
-
-        private void tbGraviton_Scroll(object sender, EventArgs e)
-        {
-            point1.Power = tbGraviton.Value;
-        }
-
-        private void tbGraviton2_Scroll(object sender, EventArgs e)
-        {
-            point2.Power = tbGraviton2.Value;
-
         }
     }
 }
