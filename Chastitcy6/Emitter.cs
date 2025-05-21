@@ -36,7 +36,7 @@ namespace Chastitcy6
         public int LifeMin = 20;
         public int LifeMax = 100;
 
-        // сколько частиц создаётся за один тик
+        // сколько частиц я могу создать за один тик
         public int ParticlesPerTick = 1;
 
         // цветовой градиент частиц: от ColorFrom → к ColorTo
@@ -82,22 +82,26 @@ namespace Chastitcy6
             // пробегаем по всем частицам
             foreach (var p in particles)
             {
+                //если частица умерла
                 if (p.Life <= 0)
                 {
-                    // если частица «умерла» и ещё можно создать новую
+                    // если частица «умерла» и у нас еще есть квота
                     if (toCreate > 0)
                     {
-                        toCreate--;
-                        ResetParticle(p);
+                        toCreate--;//тратим одну квоту
+                        ResetParticle(p);//воскрешаем
                     }
                 }
+
+                //иначе она жива
                 else
                 {
-                    // применяем все точки воздействия
+                    // проходим по всем точкам
                     foreach (var point in impactPoints)
+                        //вызываем метод как именно она должна меняться точка
                         point.ImpactParticle(p);
 
-                    // перемещаем частицу
+                    // перемещаем частицу по оси
                     p.X += p.SpeedX;
                     p.Y += p.SpeedY;
 
@@ -106,7 +110,7 @@ namespace Chastitcy6
                 }
             }
 
-            // если остались «билеты» на создание, порождаем новые частицы
+            // если остались квоты на создание, порождаем новые частицы
             while (toCreate > 0)
             {
                 toCreate--;

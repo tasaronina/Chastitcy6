@@ -31,9 +31,10 @@ namespace Chastitcy6
             Life = 20 + rand.Next(100);
         }
 
-        // рисуем частицу как полупрозрачный черный круг
+       
         public virtual void Draw(Graphics g)
         {
+            //расчитыывается время жизни частицы и в соответсвии рисует затухающей или нет
             float k = Math.Min(1f, Life / 100f);
             int alpha = (int)(k * 255);
 
