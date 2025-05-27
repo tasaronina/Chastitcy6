@@ -1,111 +1,175 @@
-﻿using Chastitcy6;
-using System.Collections.Generic;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
-using System;
+using System.Diagnostics;
 
 namespace Chastitcy6
 {
     public partial class Form1 : Form
     {
-        // список эмиттеров, чтобы можно было расширить систему
-        List<Emitter> emitters = new List<Emitter>();
+        private const int cols = 10, rows = 8;
+        private WaterTile[,] tiles = new WaterTile[cols, rows];
+        private PumpEmitter pump;
+        private WaterGate gate;
 
-        // сам эмиттер, который будет генерировать частицы
-        Emitter emitter;
-
-        // единственный портал: красный вход → фиолетовый выход
-        Teleport teleport;
+        private bool addingGate = false;
+        private bool addingGravity = false;
+        private int threshold = 10;
+        private int score = 0;
+        private Stopwatch gameClock = new Stopwatch();
 
         public Form1()
         {
             InitializeComponent();
 
-            // создаём буфер для рисования на picturebox
-            picDisplay.Image = new Bitmap(picDisplay.Width, picDisplay.Height);
+            // 1) — строим сетку плиток
+            int w = picDisplay.Width / cols;
+            int h = picDisplay.Height / rows;
+            for (int i = 0; i < cols; i++)
+                for (int j = 0; j < rows; j++)
+                    tiles[i, j] = new WaterTile
+                    {
+                        area = new Rectangle(i * w, j * h, w, h)
+                    };
 
-            //  настраиваем эмиттер
-            emitter = new Emitter
+            // 2) — создаём насос-эмиттер
+            pump = new PumpEmitter
             {
-                // направление выстрела (–90° = вверх)
-                Direction = -90,
-                // разброс частиц в градусах
-                Spreading = 45,
-                // скорость частиц (min … max)
-                SpeedMin = 8,
-                SpeedMax = 14,
-                // сколько частиц выпускается за тик
-                ParticlesPerTick = 30,
-                // цвет плавного перехода у частиц (от → к)
-                ColorFrom = Color.Gold,
-                ColorTo = Color.FromArgb(0, Color.Red),
-                // начальные координаты эмиттера (центр экрана)
+                tiles = tiles,
+                cols = cols,
+                rows = rows,
+                Direction = trkAngle.Value,
+                Spreading = 30,
+                SpeedMin = 5,
+                SpeedMax = 8,
+                ParticlesPerTick = trkPower.Value,
+                ColorFrom = Color.LightBlue,
+                ColorTo = Color.Blue,
                 X = picDisplay.Width / 2,
-                Y = picDisplay.Height / 2,
+                Y = picDisplay.Height
             };
-            // добавляем эмиттер в список для удобства
-            emitters.Add(emitter);
+            pump.impactPoints.Add(new IImpactPoint.GravityPoint());
 
-            // настраиваем портал
-            teleport = new Teleport
+            // 3) — создаём стартовый шлюз
+            gate = new WaterGate
             {
-                // координаты красного входа (левый клик двигает сюда)
-                X = picDisplay.Width / 2 - 100,
+                X = picDisplay.Width / 4,
                 Y = picDisplay.Height / 2,
-                // координаты фиолетового выхода (правый клик двигает сюда)
-                ExitX = picDisplay.Width / 2 + 100,
+                ExitX = picDisplay.Width * 3 / 4,
                 ExitY = picDisplay.Height / 2,
-                // радиус действия портала
-                Radius = 50,
-                // цвета для отрисовки (вход, выход, линия)
-                EntryPenColor = Color.Red,
-                ExitPenColor = Color.MediumPurple,
-                LinePenColor = Color.Green
+                Radius = 30
             };
-            // регистрируем портал как точку воздействия на частицы
-            emitter.impactPoints.Add(teleport);
+            pump.impactPoints.Add(gate);
 
-            //  подписываемся на событие клика мыши по picturebox
-            picDisplay.MouseClick += picDisplay_MouseClick;
+            // 4) — подписываемся на события
+            btnAddGate.Click += btnAddGate_Click;
+            btnAddGravity.Click += btnAddGravity_Click;
+            trkAngle.Scroll += trkAngle_Scroll;
+            trkPower.Scroll += trkPower_Scroll;
+            picDisplay.MouseClick += PicDisplay_MouseClick;
+            timer1.Tick += timer1_Tick;
 
-            //  настраиваем и запускаем таймер анимации
-            timer1.Interval = 40;  // миллисекунды между кадрами
+            // 5) — стартуем таймер/часы
+            timer1.Interval = 40;
             timer1.Start();
+            gameClock.Start();
         }
 
-        // обработчик клика мыши: левой двигаем вход, правой — выход
-        private void picDisplay_MouseClick(object sender, MouseEventArgs e)
-        {
-            if (e.Button == MouseButtons.Left)
-            {
-                // перемещаем точку входа портала
-                teleport.X = e.X;
-                teleport.Y = e.Y;
-            }
-            else if (e.Button == MouseButtons.Right)
-            {
-                // перемещаем точку выхода портала
-                teleport.ExitX = e.X;
-                teleport.ExitY = e.Y;
-            }
-        }
-
-        // каждый тик таймера обновляем состояние частиц и перерисовываем
         private void timer1_Tick(object sender, EventArgs e)
         {
-            // обновляем позиции, скорости и телепорт
-            emitter.UpdateState();
+            // обновляем логику
+            foreach (var t in tiles)
+                t.Update(threshold);
 
-            // рисуем всё на картинке
-            using (var g = Graphics.FromImage(picDisplay.Image))
-            {
-                // очищаем фон в белый цвет
-                g.Clear(Color.White);
-                // отрисовываем все частицы и портал
-                emitter.Render(g);
-            }
-            // просим picturebox обновить отображение
+            pump.UpdateState();
+
+            // пересчёт очков
+            score = 0;
+            foreach (var t in tiles)
+                if (!t.flooded) score++;
+            lblScore.Text = "Счёт: " + score;
+
+            // обновление времени
+            var ts = gameClock.Elapsed;
+            lblTime.Text = $"Время: {ts.Minutes:00}:{ts.Seconds:00}";
+
+            // перерисовка экрана
             picDisplay.Invalidate();
+        }
+
+        private void picDisplay_Paint(object sender, PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.Clear(Color.Black);
+
+            // рисуем плитки
+            foreach (var t in tiles)
+                t.Render(g);
+
+            // рисуем частицы и шлюз
+            pump.Render(g);
+        }
+
+        private void PicDisplay_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (addingGate)
+            {
+                pump.impactPoints.Add(new WaterGate
+                {
+                    X = e.X,
+                    Y = e.Y,
+                    ExitX = e.X,
+                    ExitY = e.Y,
+                    Radius = 30
+                });
+                addingGate = false;
+                return;
+            }
+            if (addingGravity)
+            {
+                pump.impactPoints.Add(new IImpactPoint.GravityPoint
+                {
+                    X = e.X,
+                    Y = e.Y
+                });
+                addingGravity = false;
+                return;
+            }
+
+            if (e.Button == MouseButtons.Left)
+            {
+                gate.X = e.X;
+                gate.Y = e.Y;
+            }
+            else
+            {
+                gate.ExitX = e.X;
+                gate.ExitY = e.Y;
+            }
+        }
+
+        private void btnAddGate_Click(object sender, EventArgs e)
+        {
+            addingGate = true;
+            addingGravity = false;
+        }
+
+        private void btnAddGravity_Click(object sender, EventArgs e)
+        {
+            addingGravity = true;
+            addingGate = false;
+        }
+
+        private void trkAngle_Scroll(object sender, EventArgs e)
+        {
+            pump.Direction = trkAngle.Value;
+            lblAngleValue.Text = trkAngle.Value.ToString();
+        }
+
+        private void trkPower_Scroll(object sender, EventArgs e)
+        {
+            pump.ParticlesPerTick = trkPower.Value;
+            lblPowerValue.Text = trkPower.Value.ToString();
         }
     }
 }

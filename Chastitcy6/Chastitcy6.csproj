@@ -64,7 +64,6 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PumpEmitter.cs" />
-    <Compile Include="Teleport.cs" />
     <Compile Include="WaterGate.cs" />
     <Compile Include="WaterTile.cs" />
     <EmbeddedResource Include="Form1.resx">
