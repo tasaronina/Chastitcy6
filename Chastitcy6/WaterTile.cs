@@ -1,39 +1,43 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Drawing;
+using System;
 
-namespace Chastitcy6
+public class WaterTile
 {
-    // описывает одну ячейку карты с уровнем воды
-    public class WaterTile
-    {
-        public Rectangle area;      // экранная область tile
-        public int waterLevel;      // накопленная вода
-        public bool flooded;        // была ли она затоплена
+    public Rectangle area;
+    public int waterAmount;
+    public bool flooded;
 
-        // проверка: если воды слишком много — затопить
-        public void Update(int threshold)
+    // обновление: flood смотрит на внешний threshold
+    public void Update(int threshold)
+    {
+        if (waterAmount > 0)
+            waterAmount = Math.Max(0, waterAmount - 1);
+
+        flooded = waterAmount >= threshold;
+    }
+
+    // Рисуем без "threshold"!
+    public void Render(Graphics g)
+    {
+        // полупрозрачная заливка по waterAmount
+        if (waterAmount > 0)
         {
-            if (!flooded && waterLevel > threshold)
-                flooded = true;
-            // сброс уровня (не накапливаем дальше, пока flooded)
-            if (flooded) waterLevel = 0;
+            int alpha = (int)(200F * Math.Min(1F, waterAmount / 100F));
+            using (var b = new SolidBrush(Color.FromArgb(alpha, 30, 144, 255)))
+                g.FillRectangle(b, area);
         }
 
-        // рисует плитку: серая, если flooded; иначе белая
-        public void Render(Graphics g)
+        // контур сетки
+        g.DrawRectangle(Pens.DimGray, area);
+
+        // если flooded == true — добавляем волну
+        if (flooded)
         {
-            using (var brush = new SolidBrush(flooded
-                   ? Color.LightGray
-                   : Color.White))
+            using (var pen = new Pen(Color.LightSkyBlue, 1))
             {
-                g.FillRectangle(brush, area);
+                for (int x = area.Left; x < area.Right; x += 6)
+                    g.DrawArc(pen, x, area.Top - 2, 6, 6, 0, 180);
             }
-            // можно дорисовать контур
-            g.DrawRectangle(Pens.Black, area);
         }
     }
 }

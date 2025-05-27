@@ -1,7 +1,8 @@
-﻿using System;
+﻿// Form1.cs
+using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
-using System.Diagnostics;
 
 namespace Chastitcy6
 {
@@ -12,27 +13,26 @@ namespace Chastitcy6
         private PumpEmitter pump;
         private WaterGate gate;
 
-        private bool addingGate = false;
-        private bool addingGravity = false;
-        private int threshold = 10;
-        private int score = 0;
+        private bool addingGate = false, addingGravity = false;
+        private int threshold = 10, score = 0;
         private Stopwatch gameClock = new Stopwatch();
 
         public Form1()
         {
             InitializeComponent();
 
-            // 1) — строим сетку плиток
+            // 1) строим сетку плиток
             int w = picDisplay.Width / cols;
             int h = picDisplay.Height / rows;
             for (int i = 0; i < cols; i++)
                 for (int j = 0; j < rows; j++)
                     tiles[i, j] = new WaterTile
                     {
-                        area = new Rectangle(i * w, j * h, w, h)
+                        area = new Rectangle(i * w, j * h, w, h),
+                        waterAmount = 0
                     };
 
-            // 2) — создаём насос-эмиттер
+            // 2) создаём насос-эмиттер
             pump = new PumpEmitter
             {
                 tiles = tiles,
@@ -50,7 +50,7 @@ namespace Chastitcy6
             };
             pump.impactPoints.Add(new IImpactPoint.GravityPoint());
 
-            // 3) — создаём стартовый шлюз
+            // 3) стартовый шлюз
             gate = new WaterGate
             {
                 X = picDisplay.Width / 4,
@@ -61,15 +61,16 @@ namespace Chastitcy6
             };
             pump.impactPoints.Add(gate);
 
-            // 4) — подписываемся на события
+            // 4) подписываем события
             btnAddGate.Click += btnAddGate_Click;
             btnAddGravity.Click += btnAddGravity_Click;
             trkAngle.Scroll += trkAngle_Scroll;
             trkPower.Scroll += trkPower_Scroll;
-            picDisplay.MouseClick += PicDisplay_MouseClick;
+            picDisplay.MouseClick += picDisplay_MouseClick;
+            picDisplay.Paint += picDisplay_Paint;
             timer1.Tick += timer1_Tick;
 
-            // 5) — стартуем таймер/часы
+            // 5) стартуем таймер и секундомер
             timer1.Interval = 40;
             timer1.Start();
             gameClock.Start();
@@ -78,39 +79,53 @@ namespace Chastitcy6
         private void timer1_Tick(object sender, EventArgs e)
         {
             // обновляем логику
-            foreach (var t in tiles)
-                t.Update(threshold);
-
+            foreach (var t in tiles) t.Update(threshold);
             pump.UpdateState();
 
-            // пересчёт очков
+            // пересчёт счёта
             score = 0;
             foreach (var t in tiles)
                 if (!t.flooded) score++;
             lblScore.Text = "Счёт: " + score;
 
-            // обновление времени
+            // обновляем время
             var ts = gameClock.Elapsed;
             lblTime.Text = $"Время: {ts.Minutes:00}:{ts.Seconds:00}";
 
-            // перерисовка экрана
+            // просим перерисовать
             picDisplay.Invalidate();
         }
 
         private void picDisplay_Paint(object sender, PaintEventArgs e)
         {
             var g = e.Graphics;
-            g.Clear(Color.Black);
+            // фон (план квартиры)
+            var plan = Properties.Resources.Kvartira;
+            g.DrawImage(plan, new Rectangle(0, 0, picDisplay.Width, picDisplay.Height));
 
-            // рисуем плитки
+            // плитки + вода + контуры + волны
             foreach (var t in tiles)
-                t.Render(g);
+            {
+                if (t.waterAmount > 0)
+                {
+                    int alpha = (int)(200f * Math.Min(1f, t.waterAmount / (float)threshold));
+                    using (var b = new SolidBrush(Color.FromArgb(alpha, 30, 144, 255)))
+                        g.FillRectangle(b, t.area);
+                }
+                g.DrawRectangle(Pens.DimGray, t.area);
+                if (t.flooded)
+                {
+                    using (var pen = new Pen(Color.LightSkyBlue, 1))
+                        for (int x = t.area.Left; x < t.area.Right; x += 6)
+                            g.DrawArc(pen, x, t.area.Top - 2, 6, 6, 0, 180);
+                }
+            }
 
-            // рисуем частицы и шлюз
+            // частицы и шлюзы
             pump.Render(g);
         }
 
-        private void PicDisplay_MouseClick(object sender, MouseEventArgs e)
+        private void picDisplay_MouseClick(object sender, MouseEventArgs e)
         {
             if (addingGate)
             {

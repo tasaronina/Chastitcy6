@@ -3,74 +3,63 @@ using System.Drawing;
 
 namespace Chastitcy6
 {
-    // базовый класс частицы
+    /// <summary>
+    /// базовая частица
+    /// </summary>
     public class Particle
     {
-        public int Radius;       // радиус частицы
-        public float X;          // координата x
-        public float Y;          // координата y
+        public float X, Y;           // позиция
+        public float SpeedX, SpeedY; // вектор скорости
+        public float Life;           // оставшиеся тики жизни
+        public int Radius;         // радиус
 
-        public float SpeedX;     // скорость по оси x
-        public float SpeedY;     // скорость по оси y
-
-        public float Life;       // оставшееся время жизни
-
-        // генератор случайных чисел для всех частиц
-        private static readonly Random rand = new Random();
-
-        // создаем новую частицу с рандомными параметрами
-        public Particle()
-        {
-            double direction = rand.Next(360);
-            float speed = 1 + rand.Next(10);
-
-            SpeedX = (float)(Math.Cos(direction / 180 * Math.PI) * speed);
-            SpeedY = -(float)(Math.Sin(direction / 180 * Math.PI) * speed);
-
-            Radius = 2 + rand.Next(10);
-            Life = 20 + rand.Next(100);
-        }
-
-       
+        /// <summary>
+        /// виртуальный метод рисования — рисуем простой чёрный кружок
+        /// </summary>
         public virtual void Draw(Graphics g)
         {
-            //расчитыывается время жизни частицы и в соответсвии рисует затухающей или нет
-            float k = Math.Min(1f, Life / 100f);
-            int alpha = (int)(k * 255);
-
-            using (var brush = new SolidBrush(Color.FromArgb(alpha, Color.Black)))
+            using (var brush = new SolidBrush(Color.Black))
             {
                 g.FillEllipse(brush, X - Radius, Y - Radius, Radius * 2, Radius * 2);
             }
         }
     }
 
-    // класс цветной частицы, наследует базовую логику
+    /// <summary>
+    /// цветная частица с градиентом из FromColor в ToColor
+    /// </summary>
     public class ParticleColorful : Particle
     {
-        public Color FromColor;  // начальный цвет
-        public Color ToColor;    // конечный цвет
+        public Color FromColor;
+        public Color ToColor;
 
-        // смешиваем два цвета в зависимости от k (0..1)
-        private static Color MixColor(Color c1, Color c2, float k)
+        /// <summary>
+        /// смешиваем два цвета по t от 0 до 1
+        /// </summary>
+        public static Color MixColor(Color c1, Color c2, float t)
         {
             return Color.FromArgb(
-                (int)(c2.A * k + c1.A * (1 - k)),
-                (int)(c2.R * k + c1.R * (1 - k)),
-                (int)(c2.G * k + c1.G * (1 - k)),
-                (int)(c2.B * k + c1.B * (1 - k))
+                (int)(c2.A * t + c1.A * (1 - t)),
+                (int)(c2.R * t + c1.R * (1 - t)),
+                (int)(c2.G * t + c1.G * (1 - t)),
+                (int)(c2.B * t + c1.B * (1 - t))
             );
         }
 
-        // рисуем частицу, меняющую цвет от FromColor к ToColor
+        /// <summary>
+        /// отрисовка кружка с плавным затуханием и тонкой тенью
+        /// </summary>
         public override void Draw(Graphics g)
         {
+            // коэффициент прозрачности / перехода
             float k = Math.Min(1f, Life / 100f);
-            Color color = MixColor(ToColor, FromColor, k);
+            var color = MixColor(ToColor, FromColor, k);
 
             using (var brush = new SolidBrush(color))
+            using (var pen = new Pen(Color.FromArgb((int)(k * 100), Color.Black), 1))
             {
-                g.FillEllipse(brush, X - Radius, Y - Radius, Radius * 2, Radius * 2);
+                g.FillEllipse(brush, X - Radius, Y - Radius, 2 * Radius, 2 * Radius);
+                g.DrawEllipse(pen, X - Radius, Y - Radius, 2 * Radius, 2 * Radius);
             }
         }
     }

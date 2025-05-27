@@ -1,24 +1,53 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
 
 namespace Chastitcy6
 {
-    // насос-эмиттер: капли попадают в тайлы и накапливаются в tiles[x,y].waterLevel
-    public class PumpEmitter : Emitter
+    // эмиттер капелек-частиц
+    public class PumpEmitter
     {
-        public WaterTile[,] tiles;   // ссылка на карту
-        public int cols, rows;       // размер карты
+        public List<IImpactPoint> impactPoints = new List<IImpactPoint>();
+        private List<Particle> particles = new List<Particle>();
+        private static readonly Random rand = new Random();
 
-        private WaterTile GetTileAt(float x, float y)
+        public WaterTile[,] tiles;  // ссылка на плитки
+        public int cols, rows;      // размеры массива
+
+        public int X, Y;            // позиция насоса
+        public int Direction;       // направление в градусах
+        public int Spreading;       // разброс угла
+        public int SpeedMin, SpeedMax;
+        public int RadiusMin = 2, RadiusMax = 8;
+        public int LifeMin = 20, LifeMax = 100;
+        public int ParticlesPerTick = 20;
+        public Color ColorFrom, ColorTo;
+
+        // создаём новую цветную частицу
+        public virtual Particle CreateParticle()
         {
-            int ix = (int)(x / tiles[0, 0].area.Width);
-            int iy = (int)(y / tiles[0, 0].area.Height);
-            if (ix < 0 || ix >= cols || iy < 0 || iy >= rows) return null;
-            return tiles[ix, iy];
+            var p = new ParticleColorful();
+            (p as ParticleColorful).FromColor = ColorFrom;
+            (p as ParticleColorful).ToColor = ColorTo;
+            return p;
         }
 
-        // переопределяем логику: вместо обычной отрисовки капель
-        // заполняем тайлы водой
-        public override void UpdateState()
+        // сброс параметров частицы (при возрождении)
+        public void ResetParticle(Particle p)
+        {
+            p.Life = rand.Next(LifeMin, LifeMax);
+            p.X = X;
+            p.Y = Y;
+
+            double dir = Direction + rand.Next(Spreading) - Spreading / 2.0;
+            float speed = rand.Next(SpeedMin, SpeedMax);
+            p.SpeedX = (float)(Math.Cos(dir / 180 * Math.PI) * speed);
+            p.SpeedY = -(float)(Math.Sin(dir / 180 * Math.PI) * speed);
+            p.Radius = rand.Next(RadiusMin, RadiusMax);
+        }
+
+        // обновляем всех частиц и создаём новые
+        public void UpdateState()
         {
             int toCreate = ParticlesPerTick;
 
@@ -26,40 +55,42 @@ namespace Chastitcy6
             {
                 if (p.Life <= 0)
                 {
-                    if (toCreate > 0)
-                    {
-                        toCreate--;
+                    if (toCreate-- > 0)
                         ResetParticle(p);
-                    }
                 }
                 else
                 {
-                    // проверяем тайл под каплей
-                    var tile = GetTileAt(p.X, p.Y);
-                    if (tile != null && !tile.flooded)
-                    {
-                        tile.waterLevel++;
-                        p.Life = 0;
-                        continue;
-                    }
-
-                    // иначе обычная логика точек воздействия
-                    foreach (var point in impactPoints)
-                        point.ImpactParticle(p);
+                    foreach (var ip in impactPoints)
+                        ip.ImpactParticle(p);
 
                     p.X += p.SpeedX;
                     p.Y += p.SpeedY;
                     p.Life--;
+
+                    // при попадании в плитку увеличиваем уровень воды
+                    int cx = (int)(p.X / tiles.GetLength(0) * cols);
+                    int cy = (int)(p.Y / tiles.GetLength(1) * rows);
+                    if (cx >= 0 && cy >= 0 && cx < cols && cy < rows)
+                        tiles[cx, cy].waterAmount++;
                 }
             }
 
-            while (toCreate > 0)
+            while (toCreate-- > 0)
             {
-                toCreate--;
                 var p = CreateParticle();
                 ResetParticle(p);
                 particles.Add(p);
             }
+        }
+
+        // рисуем все частицы и все точки воздействия
+        public void Render(Graphics g)
+        {
+            foreach (var p in particles)
+                (p as ParticleColorful).Draw(g);
+
+            foreach (var ip in impactPoints)
+                ip.Render(g);
         }
     }
 }
