@@ -1,47 +1,49 @@
-﻿// Form1.Designer.cs
-using System.Drawing;
-using System.Windows.Forms;
-using System;
-
-namespace Chastitcy6
+﻿namespace Chastitcy6
 {
     partial class Form1
     {
         private System.ComponentModel.IContainer components = null;
-        public PictureBox picDisplay;
-        public Timer timer1;
-        public Panel panel1;
-        public TrackBar trkAngle;
-        public Label lblAngleValue;
-        public TrackBar trkPower;
-        public Label lblPowerValue;
-        public Button btnAddGate;
-        public Button btnAddGravity;
-        public Label lblScore;
-        public Label lblTime;
-        public Label lblHint;
+        private System.Windows.Forms.PictureBox picDisplay;
+        private System.Windows.Forms.Timer timer1;
+        private System.Windows.Forms.TrackBar trkAngle;
+        private System.Windows.Forms.Label lblAngleValue;
+        private System.Windows.Forms.TrackBar trkPower;
+        private System.Windows.Forms.Label lblPowerValue;
+        private System.Windows.Forms.Button btnAddGravity;
+        private System.Windows.Forms.Button btnReset;
+        private System.Windows.Forms.Label lblScore;
+        private System.Windows.Forms.Label lblTime;
+        private System.Windows.Forms.ProgressBar prgWaterLevel;
+        private System.Windows.Forms.Label lblWaterPercent;
+        private System.Windows.Forms.Label lblHint;
+        private System.Windows.Forms.Panel panel1;
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null)) components.Dispose();
+            if (disposing && (components != null))
+                components.Dispose();
             base.Dispose(disposing);
         }
+
+        #region Windows Form Designer generated code
 
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            this.picDisplay = new PictureBox();
-            this.timer1 = new Timer(this.components);
-            this.panel1 = new Panel();
-            this.trkAngle = new TrackBar();
-            this.lblAngleValue = new Label();
-            this.trkPower = new TrackBar();
-            this.lblPowerValue = new Label();
-            this.btnAddGate = new Button();
-            this.btnAddGravity = new Button();
-            this.lblScore = new Label();
-            this.lblTime = new Label();
-            this.lblHint = new Label();
+            this.picDisplay = new System.Windows.Forms.PictureBox();
+            this.timer1 = new System.Windows.Forms.Timer(this.components);
+            this.trkAngle = new System.Windows.Forms.TrackBar();
+            this.lblAngleValue = new System.Windows.Forms.Label();
+            this.trkPower = new System.Windows.Forms.TrackBar();
+            this.lblPowerValue = new System.Windows.Forms.Label();
+            this.btnAddGravity = new System.Windows.Forms.Button();
+            this.btnReset = new System.Windows.Forms.Button();
+            this.lblScore = new System.Windows.Forms.Label();
+            this.lblTime = new System.Windows.Forms.Label();
+            this.prgWaterLevel = new System.Windows.Forms.ProgressBar();
+            this.lblWaterPercent = new System.Windows.Forms.Label();
+            this.lblHint = new System.Windows.Forms.Label();
+            this.panel1 = new System.Windows.Forms.Panel();
 
             ((System.ComponentModel.ISupportInitialize)(this.picDisplay)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trkAngle)).BeginInit();
@@ -50,98 +52,105 @@ namespace Chastitcy6
             this.SuspendLayout();
 
             // picDisplay
-            this.picDisplay.Location = new Point(12, 12);
+            this.picDisplay.Location = new System.Drawing.Point(12, 12);
             this.picDisplay.Name = "picDisplay";
-            this.picDisplay.Size = new Size(624, 485);
+            this.picDisplay.Size = new System.Drawing.Size(624, 485);
             this.picDisplay.TabIndex = 0;
             this.picDisplay.TabStop = false;
-            this.picDisplay.Paint += new PaintEventHandler(this.picDisplay_Paint);
-            this.picDisplay.MouseClick += new MouseEventHandler(this.picDisplay_MouseClick);
-
-            // timer1
-            this.timer1.Interval = 40;
-            this.timer1.Tick += new EventHandler(this.timer1_Tick);
-
-            // panel1
-            this.panel1.Controls.Add(this.lblHint);
-            this.panel1.Controls.Add(this.lblTime);
-            this.panel1.Controls.Add(this.lblScore);
-            this.panel1.Controls.Add(this.btnAddGravity);
-            this.panel1.Controls.Add(this.btnAddGate);
-            this.panel1.Controls.Add(this.lblPowerValue);
-            this.panel1.Controls.Add(this.trkPower);
-            this.panel1.Controls.Add(this.lblAngleValue);
-            this.panel1.Controls.Add(this.trkAngle);
-            this.panel1.Dock = DockStyle.Right;
-            this.panel1.Location = new Point(654, 0);
-            this.panel1.Name = "panel1";
-            this.panel1.Size = new Size(360, 522);
-            this.panel1.TabIndex = 1;
 
             // trkAngle
-            this.trkAngle.Location = new Point(10, 15);
+            this.trkAngle.Location = new System.Drawing.Point(10, 10);
             this.trkAngle.Maximum = 360;
             this.trkAngle.TickFrequency = 45;
             this.trkAngle.Name = "trkAngle";
-            this.trkAngle.Size = new Size(200, 45);
+            this.trkAngle.Size = new System.Drawing.Size(200, 45);
             this.trkAngle.Value = 270;
 
             // lblAngleValue
             this.lblAngleValue.AutoSize = true;
-            this.lblAngleValue.Location = new Point(220, 15);
+            this.lblAngleValue.Location = new System.Drawing.Point(220, 10);
             this.lblAngleValue.Name = "lblAngleValue";
             this.lblAngleValue.Text = "270";
 
             // trkPower
-            this.trkPower.Location = new Point(10, 70);
+            this.trkPower.Location = new System.Drawing.Point(10, 60);
             this.trkPower.Minimum = 1;
             this.trkPower.Maximum = 100;
             this.trkPower.TickFrequency = 10;
             this.trkPower.Name = "trkPower";
-            this.trkPower.Size = new Size(200, 45);
+            this.trkPower.Size = new System.Drawing.Size(200, 45);
             this.trkPower.Value = 20;
 
             // lblPowerValue
             this.lblPowerValue.AutoSize = true;
-            this.lblPowerValue.Location = new Point(220, 70);
+            this.lblPowerValue.Location = new System.Drawing.Point(220, 60);
             this.lblPowerValue.Name = "lblPowerValue";
             this.lblPowerValue.Text = "20";
 
-            // btnAddGate
-            this.btnAddGate.Location = new Point(10, 125);
-            this.btnAddGate.Name = "btnAddGate";
-            this.btnAddGate.Size = new Size(232, 30);
-            this.btnAddGate.Text = "Добавить шлюз";
-            this.btnAddGate.UseVisualStyleBackColor = true;
-
             // btnAddGravity
-            this.btnAddGravity.Location = new Point(10, 165);
+            this.btnAddGravity.Location = new System.Drawing.Point(10, 115);
             this.btnAddGravity.Name = "btnAddGravity";
-            this.btnAddGravity.Size = new Size(232, 30);
+            this.btnAddGravity.Size = new System.Drawing.Size(200, 30);
             this.btnAddGravity.Text = "Добавить гравитон";
             this.btnAddGravity.UseVisualStyleBackColor = true;
 
+            // btnReset
+            this.btnReset.Location = new System.Drawing.Point(10, 155);
+            this.btnReset.Name = "btnReset";
+            this.btnReset.Size = new System.Drawing.Size(200, 30);
+            this.btnReset.Text = "Сбросить";
+            this.btnReset.UseVisualStyleBackColor = true;
+
             // lblScore
             this.lblScore.AutoSize = true;
-            this.lblScore.Location = new Point(10, 220);
+            this.lblScore.Location = new System.Drawing.Point(10, 200);
             this.lblScore.Name = "lblScore";
             this.lblScore.Text = "Счёт: 0";
 
             // lblTime
             this.lblTime.AutoSize = true;
-            this.lblTime.Location = new Point(10, 250);
+            this.lblTime.Location = new System.Drawing.Point(10, 230);
             this.lblTime.Name = "lblTime";
             this.lblTime.Text = "Время: 00:00";
 
+            // prgWaterLevel
+            this.prgWaterLevel.Location = new System.Drawing.Point(10, 270);
+            this.prgWaterLevel.Name = "prgWaterLevel";
+            this.prgWaterLevel.Size = new System.Drawing.Size(200, 23);
+
+            // lblWaterPercent
+            this.lblWaterPercent.AutoSize = true;
+            this.lblWaterPercent.Location = new System.Drawing.Point(220, 270);
+            this.lblWaterPercent.Name = "lblWaterPercent";
+            this.lblWaterPercent.Text = "0%";
+
             // lblHint
             this.lblHint.AutoSize = true;
-            this.lblHint.Location = new Point(10, 285);
+            this.lblHint.Location = new System.Drawing.Point(10, 310);
             this.lblHint.Name = "lblHint";
-            this.lblHint.Text = "L-клик: вход шлюза\nR-клик: выход шлюза";
+            this.lblHint.Text = "L-клик: добавить гравитон";
+
+            // panel1
+            this.panel1.Controls.Add(this.trkAngle);
+            this.panel1.Controls.Add(this.lblAngleValue);
+            this.panel1.Controls.Add(this.trkPower);
+            this.panel1.Controls.Add(this.lblPowerValue);
+            this.panel1.Controls.Add(this.btnAddGravity);
+            this.panel1.Controls.Add(this.btnReset);
+            this.panel1.Controls.Add(this.lblScore);
+            this.panel1.Controls.Add(this.lblTime);
+            this.panel1.Controls.Add(this.prgWaterLevel);
+            this.panel1.Controls.Add(this.lblWaterPercent);
+            this.panel1.Controls.Add(this.lblHint);
+            this.panel1.Dock = System.Windows.Forms.DockStyle.Right;
+            this.panel1.Location = new System.Drawing.Point(650, 0);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(280, 522);
+            this.panel1.TabIndex = 1;
 
             // Form1
-            this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(1037, 522);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.ClientSize = new System.Drawing.Size(932, 522);
             this.Controls.Add(this.picDisplay);
             this.Controls.Add(this.panel1);
             this.Name = "Form1";
@@ -154,5 +163,7 @@ namespace Chastitcy6
             this.panel1.PerformLayout();
             this.ResumeLayout(false);
         }
+
+        #endregion
     }
 }

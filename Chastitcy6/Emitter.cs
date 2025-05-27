@@ -5,83 +5,84 @@ using System.Drawing;
 namespace Chastitcy6
 {
     /// <summary>
-    /// эмиттер генерирует частицы, обновляет их состояние и рисует
+    /// базовый эмиттер частиц
     /// </summary>
     public class Emitter
     {
-        // список точек воздействия (телепорты, гравитоны и пр.)
+        // точки воздействия на частицы (гравитоны, шлюзы и т.п.)
         public List<IImpactPoint> impactPoints = new List<IImpactPoint>();
 
-        // внутренний список самих частиц
+        // внутренний список частиц
         protected List<Particle> particles = new List<Particle>();
 
         // генератор случайных чисел
         private static readonly Random rand = new Random();
 
-        // ----- настроки эмиттера -----
-        public int X, Y;                 // положение источника
-        public int Direction = 0;        // направление (градусы)
-        public int Spreading = 360;      // разброс (градусы)
-        public int SpeedMin = 1;         // скорость частицы
-        public int SpeedMax = 10;
-        public int RadiusMin = 2;        // радиус частицы
-        public int RadiusMax = 10;
-        public int LifeMin = 20;         // время жизни (ticks)
-        public int LifeMax = 100;
-        public int ParticlesPerTick = 1; // квота на тик
-        public Color ColorFrom = Color.White;
-        public Color ColorTo = Color.FromArgb(0, Color.Black);
+        // --- настраиваемые параметры эмиттера ---
+        public int X, Y;                      // положение «насоса»
+        public int Direction = -90;           // направление потока (градусы)
+        public int Spreading = 30;           // разброс углов
+        public int SpeedMin = 5;            // минимальная скорость
+        public int SpeedMax = 8;            // максимальная скорость
+        public int RadiusMin = 2;            // минимальный радиус частицы
+        public int RadiusMax = 6;            // максимальный радиус
+        public int LifeMin = 30;           // минимальная «жизнь»
+        public int LifeMax = 80;           // максимальная «жизнь»
+        public int ParticlesPerTick = 20;     // квота частиц на тик
+        public Color ColorFrom = Color.LightBlue;
+        public Color ColorTo = Color.Blue;
 
-        /// <summary>создаёт новую частицу (можно переопределить в наследниках)</summary>
+        /// <summary>
+        /// создаёт новую цветную частицу
+        /// </summary>
         public virtual Particle CreateParticle()
         {
-            var p = new ParticleColorful
-            {
-                FromColor = ColorFrom,
-                ToColor = ColorTo
-            };
+            var p = new ParticleColorful();
+            p.FromColor = ColorFrom;
+            p.ToColor = ColorTo;
             return p;
         }
 
-        /// <summary>сбрасывает (воскрешает) частицу в исходное состояние</summary>
+        /// <summary>
+        /// «воскрешает» частицу в центре эмиттера
+        /// </summary>
         public void ResetParticle(Particle p)
         {
             p.Life = rand.Next(LifeMin, LifeMax);
             p.X = X;
             p.Y = Y;
-
-            double dir = Direction + rand.Next(Spreading) - Spreading / 2.0;
+            double ang = Direction + rand.Next(Spreading) - Spreading / 2.0;
             float speed = rand.Next(SpeedMin, SpeedMax);
-
-            p.SpeedX = (float)(Math.Cos(dir / 180 * Math.PI) * speed);
-            p.SpeedY = -(float)(Math.Sin(dir / 180 * Math.PI) * speed);
+            p.SpeedX = (float)(Math.Cos(ang * Math.PI / 180) * speed);
+            p.SpeedY = (float)(-Math.Sin(ang * Math.PI / 180) * speed);
             p.Radius = rand.Next(RadiusMin, RadiusMax);
         }
 
-        /// <summary>основное обновление: движем, телепортируем, создаём/воскрешаем</summary>
+        /// <summary>
+        /// базовое обновление: двигаем, применяем точки воздействия, создаём/воскрешаем
+        /// </summary>
         public virtual void UpdateState()
         {
-            int toCreate = ParticlesPerTick;
+            int quota = ParticlesPerTick;
 
-            // 1) пробег по уже существующим частицам
+            // 1) обновляем существующие
             foreach (var p in particles)
             {
                 if (p.Life <= 0)
                 {
-                    // воскрешаем до квоты
-                    if (toCreate > 0)
+                    if (quota > 0)
                     {
-                        toCreate--;
+                        quota--;
                         ResetParticle(p);
                     }
                 }
                 else
                 {
-                    // точки воздействия (гравитоны, телепорты и т.д.)
+                    // применяем все «гравитоны» и т.п.
                     foreach (var ip in impactPoints)
                         ip.ImpactParticle(p);
 
-                    // движение
+                    // двигаем
                     p.X += p.SpeedX;
                     p.Y += p.SpeedY;
                     p.Life--;
@@ -89,7 +90,7 @@ namespace Chastitcy6
             }
 
             // 2) создаём новых, если осталась квота
-            while (toCreate-- > 0)
+            while (quota-- > 0)
             {
                 var p = CreateParticle();
                 ResetParticle(p);
@@ -97,20 +98,23 @@ namespace Chastitcy6
             }
         }
 
-        /// <summary>отрисовываем все частицы и все точки воздействия</summary>
+        /// <summary>
+        /// очищает все частицы
+        /// </summary>
+        public void Clear()
+        {
+            particles.Clear();
+        }
+
+        /// <summary>
+        /// рисует частицы и все точки воздействия
+        /// </summary>
         public void Render(Graphics g)
         {
             foreach (var p in particles)
-            {
-                // вызываем Draw у любой частицы
                 p.Draw(g);
-            }
-
-            // рендер точек воздействия поверх частиц
             foreach (var ip in impactPoints)
-            {
                 ip.Render(g);
-            }
         }
     }
 }

@@ -1,5 +1,4 @@
-﻿// Form1.cs
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
@@ -11,17 +10,16 @@ namespace Chastitcy6
         private const int cols = 10, rows = 8;
         private WaterTile[,] tiles = new WaterTile[cols, rows];
         private PumpEmitter pump;
-        private WaterGate gate;
-
-        private bool addingGate = false, addingGravity = false;
-        private int threshold = 10, score = 0;
+        private bool addingGravity = false;
+        private readonly int threshold = 10;
+        private int score = 0;
         private Stopwatch gameClock = new Stopwatch();
 
         public Form1()
         {
             InitializeComponent();
 
-            // 1) строим сетку плиток
+            // 1) создаём сетку плиток
             int w = picDisplay.Width / cols;
             int h = picDisplay.Height / rows;
             for (int i = 0; i < cols; i++)
@@ -29,10 +27,11 @@ namespace Chastitcy6
                     tiles[i, j] = new WaterTile
                     {
                         area = new Rectangle(i * w, j * h, w, h),
-                        waterAmount = 0
+                        waterAmount = 0,
+                        flooded = false
                     };
 
-            // 2) создаём насос-эмиттер
+            // 2) настраиваем «насос-эмиттер»
             pump = new PumpEmitter
             {
                 tiles = tiles,
@@ -48,62 +47,68 @@ namespace Chastitcy6
                 X = picDisplay.Width / 2,
                 Y = picDisplay.Height
             };
-            pump.impactPoints.Add(new IImpactPoint.GravityPoint());
-
-            // 3) стартовый шлюз
-            gate = new WaterGate
+            // добавляем один гравитон по умолчанию
+            pump.impactPoints.Add(new IImpactPoint.GravityPoint
             {
-                X = picDisplay.Width / 4,
+                X = picDisplay.Width / 2,
                 Y = picDisplay.Height / 2,
-                ExitX = picDisplay.Width * 3 / 4,
-                ExitY = picDisplay.Height / 2,
-                Radius = 30
-            };
-            pump.impactPoints.Add(gate);
+                Power = 200
+            });
 
-            // 4) подписываем события
-            btnAddGate.Click += btnAddGate_Click;
-            btnAddGravity.Click += btnAddGravity_Click;
-            trkAngle.Scroll += trkAngle_Scroll;
-            trkPower.Scroll += trkPower_Scroll;
-            picDisplay.MouseClick += picDisplay_MouseClick;
-            picDisplay.Paint += picDisplay_Paint;
-            timer1.Tick += timer1_Tick;
+            // 3) привязываем события
+            btnAddGravity.Click += BtnAddGravity_Click;
+            btnReset.Click += BtnReset_Click;
+            trkAngle.Scroll += TrkAngle_Scroll;
+            trkPower.Scroll += TrkPower_Scroll;
+            picDisplay.Paint += PicDisplay_Paint;
+            picDisplay.MouseClick += PicDisplay_MouseClick;
+            timer1.Tick += Timer1_Tick;
 
-            // 5) стартуем таймер и секундомер
+            // 4) стартуем таймер и секундомер
             timer1.Interval = 40;
             timer1.Start();
             gameClock.Start();
         }
 
-        private void timer1_Tick(object sender, EventArgs e)
+        private void Timer1_Tick(object sender, EventArgs e)
         {
-            // обновляем логику
+            // a) обновляем плитки и частицы
             foreach (var t in tiles) t.Update(threshold);
             pump.UpdateState();
 
-            // пересчёт счёта
+            // b) пересчитываем счёт (кол-во невсплывших плиток)
             score = 0;
             foreach (var t in tiles)
                 if (!t.flooded) score++;
             lblScore.Text = "Счёт: " + score;
 
-            // обновляем время
+            // c) обновляем Health-бар
+            int total = cols * rows, flooded = 0;
+            foreach (var t in tiles) if (t.flooded) flooded++;
+            int pct = flooded * 100 / total;
+            prgWaterLevel.Value = Math.Min(pct, 100);
+            lblWaterPercent.Text = pct + "%";
+
+            // d) проверяем Game Over
+            CheckGameOver();
+
+            // e) обновляем время
             var ts = gameClock.Elapsed;
             lblTime.Text = $"Время: {ts.Minutes:00}:{ts.Seconds:00}";
 
-            // просим перерисовать
+            // f) просим перерисовать
             picDisplay.Invalidate();
         }
 
-        private void picDisplay_Paint(object sender, PaintEventArgs e)
+        private void PicDisplay_Paint(object sender, PaintEventArgs e)
         {
             var g = e.Graphics;
-            // фон (план квартиры)
-            var plan = Properties.Resources.Kvartira;
-            g.DrawImage(plan, new Rectangle(0, 0, picDisplay.Width, picDisplay.Height));
 
-            // плитки + вода + контуры + волны
+            // 1) фон — план квартиры
+            g.DrawImage(Properties.Resources.Kvartira,
+                new Rectangle(0, 0, picDisplay.Width, picDisplay.Height));
+
+            // 2) рисуем плитки: вода, контуры, волны
             foreach (var t in tiles)
             {
                 if (t.waterAmount > 0)
@@ -113,6 +118,7 @@ namespace Chastitcy6
                         g.FillRectangle(b, t.area);
                 }
                 g.DrawRectangle(Pens.DimGray, t.area);
+
                 if (t.flooded)
                 {
                     using (var pen = new Pen(Color.LightSkyBlue, 1))
@@ -121,70 +127,85 @@ namespace Chastitcy6
                 }
             }
 
-            // частицы и шлюзы
+            // 3) рендерим частицы и гравитоны
             pump.Render(g);
         }
 
-        private void picDisplay_MouseClick(object sender, MouseEventArgs e)
+        private void PicDisplay_MouseClick(object sender, MouseEventArgs e)
         {
-            if (addingGate)
-            {
-                pump.impactPoints.Add(new WaterGate
-                {
-                    X = e.X,
-                    Y = e.Y,
-                    ExitX = e.X,
-                    ExitY = e.Y,
-                    Radius = 30
-                });
-                addingGate = false;
-                return;
-            }
-            if (addingGravity)
-            {
-                pump.impactPoints.Add(new IImpactPoint.GravityPoint
-                {
-                    X = e.X,
-                    Y = e.Y
-                });
-                addingGravity = false;
-                return;
-            }
+            if (!addingGravity) return;
 
-            if (e.Button == MouseButtons.Left)
+            // добавляем новый гравитон в точку клика
+            pump.impactPoints.Add(new IImpactPoint.GravityPoint
             {
-                gate.X = e.X;
-                gate.Y = e.Y;
-            }
-            else
-            {
-                gate.ExitX = e.X;
-                gate.ExitY = e.Y;
-            }
-        }
-
-        private void btnAddGate_Click(object sender, EventArgs e)
-        {
-            addingGate = true;
+                X = e.X,
+                Y = e.Y,
+                Power = 200
+            });
             addingGravity = false;
         }
 
-        private void btnAddGravity_Click(object sender, EventArgs e)
+        private void BtnAddGravity_Click(object sender, EventArgs e)
         {
             addingGravity = true;
-            addingGate = false;
         }
 
-        private void trkAngle_Scroll(object sender, EventArgs e)
+        private void BtnReset_Click(object sender, EventArgs e)
+        {
+            // сброс плиток
+            foreach (var t in tiles)
+            {
+                t.waterAmount = 0;
+                t.flooded = false;
+            }
+
+            // очистка всех частиц
+            pump.Clear();
+
+            // сброс прогресса
+            score = 0;
+            lblScore.Text = "Счёт: 0";
+            prgWaterLevel.Value = 0;
+            lblWaterPercent.Text = "0%";
+
+            // рестарт времени
+            gameClock.Restart();
+            timer1.Start();
+        }
+
+        private void TrkAngle_Scroll(object sender, EventArgs e)
         {
             pump.Direction = trkAngle.Value;
             lblAngleValue.Text = trkAngle.Value.ToString();
         }
 
-        private void trkPower_Scroll(object sender, EventArgs e)
+        private void TrkPower_Scroll(object sender, EventArgs e)
         {
             pump.ParticlesPerTick = trkPower.Value;
             lblPowerValue.Text = trkPower.Value.ToString();
+        }
+
+        private void CheckGameOver()
+        {
+            // координаты насоса попадают в плитку
+            int ix = Math.Min(cols - 1, Math.Max(0, pump.X * cols / picDisplay.Width));
+            int iy = Math.Min(rows - 1, Math.Max(0, pump.Y * rows / picDisplay.Height));
+
+            if (tiles[ix, iy].flooded)
+            {
+                timer1.Stop();
+                gameClock.Stop();
+                var dr = MessageBox.Show(
+                    "Вода добралась до насоса!\nИгра окончена.\nЗапустить заново?",
+                    "Game Over",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning
+                );
+                if (dr == DialogResult.Yes)
+                    BtnReset_Click(null, null);
+                else
+                    Close();
+            }
         }
     }
 }
