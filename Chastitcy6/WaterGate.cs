@@ -2,7 +2,6 @@
 
 namespace Chastitcy6
 {
-    // шлюз-портал, переносит частицы
     public class WaterGate : IImpactPoint
     {
         public float ExitX, ExitY;

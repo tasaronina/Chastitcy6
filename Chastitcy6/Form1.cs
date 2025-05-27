@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -7,205 +6,132 @@ namespace Chastitcy6
 {
     public partial class Form1 : Form
     {
-        private const int cols = 10, rows = 8;
-        private WaterTile[,] tiles = new WaterTile[cols, rows];
-        private PumpEmitter pump;
-        private bool addingGravity = false;
-        private readonly int threshold = 10;
+        private PumpEmitter emitter;
+        private bool placingDrain;
+        private readonly Image bg = Properties.Resources.Kvartira;
+
         private int score = 0;
-        private Stopwatch gameClock = new Stopwatch();
+        private float elapsed = 0f;
+        private const float winTime = 60f;
+        private const float loseThreshold = 0.7f;
 
         public Form1()
         {
             InitializeComponent();
+            StartGame();
+        }
 
-            // 1) создаём сетку плиток
-            int w = picDisplay.Width / cols;
-            int h = picDisplay.Height / rows;
-            for (int i = 0; i < cols; i++)
-                for (int j = 0; j < rows; j++)
-                    tiles[i, j] = new WaterTile
-                    {
-                        area = new Rectangle(i * w, j * h, w, h),
-                        waterAmount = 0,
-                        flooded = false
-                    };
+        private void StartGame()
+        {
+            placingDrain = false;
+            score = 0;
+            elapsed = 0f;
 
-            // 2) настраиваем «насос-эмиттер»
-            pump = new PumpEmitter
-            {
-                tiles = tiles,
-                cols = cols,
-                rows = rows,
-                Direction = trkAngle.Value,
-                Spreading = 30,
-                SpeedMin = 5,
-                SpeedMax = 8,
-                ParticlesPerTick = trkPower.Value,
-                ColorFrom = Color.LightBlue,
-                ColorTo = Color.Blue,
-                X = picDisplay.Width / 2,
-                Y = picDisplay.Height
-            };
-            // добавляем один гравитон по умолчанию
-            pump.impactPoints.Add(new IImpactPoint.GravityPoint
-            {
-                X = picDisplay.Width / 2,
-                Y = picDisplay.Height / 2,
-                Power = 200
-            });
+            emitter = new PumpEmitter(picDisplay.Width, picDisplay.Height, 20);
 
-            // 3) привязываем события
-            btnAddGravity.Click += BtnAddGravity_Click;
-            btnReset.Click += BtnReset_Click;
-            trkAngle.Scroll += TrkAngle_Scroll;
-            trkPower.Scroll += TrkPower_Scroll;
-            picDisplay.Paint += PicDisplay_Paint;
-            picDisplay.MouseClick += PicDisplay_MouseClick;
-            timer1.Tick += Timer1_Tick;
+            // Начальное состояние UI
+            btnPumpToggle.Text = "Запустить насос";
+            lblScore.Text = "Счёт: 0";
+            lblTime.Text = "Время: 0";
+            lblWaterPercent.Text = "0%";
+            lblOverheat.Text = "Перегрев: 0";
+            prgWater.Value = 0;
+            prgOverheat.Value = 0;
 
-            // 4) стартуем таймер и секундомер
-            timer1.Interval = 40;
             timer1.Start();
-            gameClock.Start();
         }
 
         private void Timer1_Tick(object sender, EventArgs e)
         {
-            // a) обновляем плитки и частицы
-            foreach (var t in tiles) t.Update(threshold);
-            pump.UpdateState();
+            elapsed += timer1.Interval / 1000f;
+            lblTime.Text = $"Время: {elapsed:0.0}";
 
-            // b) пересчитываем счёт (кол-во невсплывших плиток)
-            score = 0;
-            foreach (var t in tiles)
-                if (!t.flooded) score++;
-            lblScore.Text = "Счёт: " + score;
+            int prevFlooded = CountFlooded();
 
-            // c) обновляем Health-бар
-            int total = cols * rows, flooded = 0;
-            foreach (var t in tiles) if (t.flooded) flooded++;
-            int pct = flooded * 100 / total;
-            prgWaterLevel.Value = Math.Min(pct, 100);
-            lblWaterPercent.Text = pct + "%";
+            emitter.UpdateState();
 
-            // d) проверяем Game Over
-            CheckGameOver();
+            int newFlooded = CountFlooded() - prevFlooded;
+            score -= newFlooded;
 
-            // e) обновляем время
-            var ts = gameClock.Elapsed;
-            lblTime.Text = $"Время: {ts.Minutes:00}:{ts.Seconds:00}";
+            // Вода
+            int total = emitter.cols * emitter.rows;
+            int flooded = CountFlooded();
+            float level = flooded / (float)total;
+            prgWater.Value = (int)(level * 100);
+            lblWaterPercent.Text = prgWater.Value + "%";
 
-            // f) просим перерисовать
+            // Перегрев
+            float ore = emitter.Overheat;
+            prgOverheat.Value = (int)(ore / emitter.OverheatMax * 100);
+            lblOverheat.Text = $"Перегрев: {ore:0}";
+
+            // Счёт
+            lblScore.Text = $"Счёт: {score}";
+
+            // Победа/поражение
+            if (level > loseThreshold)
+            {
+                timer1.Stop();
+                MessageBox.Show("Поражение: квартира затоплена", "Game Over", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (elapsed >= winTime)
+            {
+                timer1.Stop();
+                MessageBox.Show($"Победа! Вы выжили {winTime} сек.", "You Win", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             picDisplay.Invalidate();
+        }
+
+        private int CountFlooded()
+        {
+            int cnt = 0;
+            foreach (var t in emitter.tiles)
+                if (t.flooded) cnt++;
+            return cnt;
         }
 
         private void PicDisplay_Paint(object sender, PaintEventArgs e)
         {
             var g = e.Graphics;
+            if (bg != null)
+                g.DrawImage(bg, new Rectangle(0, 0, picDisplay.Width, picDisplay.Height));
+            else
+                g.Clear(Color.White);
 
-            // 1) фон — план квартиры
-            g.DrawImage(Properties.Resources.Kvartira,
-                new Rectangle(0, 0, picDisplay.Width, picDisplay.Height));
+            foreach (var t in emitter.tiles)
+                t.Render(g);
 
-            // 2) рисуем плитки: вода, контуры, волны
-            foreach (var t in tiles)
-            {
-                if (t.waterAmount > 0)
-                {
-                    int alpha = (int)(200f * Math.Min(1f, t.waterAmount / (float)threshold));
-                    using (var b = new SolidBrush(Color.FromArgb(alpha, 30, 144, 255)))
-                        g.FillRectangle(b, t.area);
-                }
-                g.DrawRectangle(Pens.DimGray, t.area);
-
-                if (t.flooded)
-                {
-                    using (var pen = new Pen(Color.LightSkyBlue, 1))
-                        for (int x = t.area.Left; x < t.area.Right; x += 6)
-                            g.DrawArc(pen, x, t.area.Top - 2, 6, 6, 0, 180);
-                }
-            }
-
-            // 3) рендерим частицы и гравитоны
-            pump.Render(g);
+            emitter.Render(g);
         }
 
         private void PicDisplay_MouseClick(object sender, MouseEventArgs e)
         {
-            if (!addingGravity) return;
-
-            // добавляем новый гравитон в точку клика
-            pump.impactPoints.Add(new IImpactPoint.GravityPoint
-            {
-                X = e.X,
-                Y = e.Y,
-                Power = 200
-            });
-            addingGravity = false;
+            if (!placingDrain) return;
+            var dp = new DrainPoint { X = e.X, Y = e.Y };
+            emitter.AddDrain(dp);
+            placingDrain = false;
+            btnPlaceDrain.Enabled = true;
         }
 
-        private void BtnAddGravity_Click(object sender, EventArgs e)
+        private void BtnPumpToggle_Click(object sender, EventArgs e)
         {
-            addingGravity = true;
+            emitter.PumpOn = !emitter.PumpOn;
+            btnPumpToggle.Text = emitter.PumpOn ? "Остановить насос" : "Запустить насос";
+        }
+
+        private void BtnPlaceDrain_Click(object sender, EventArgs e)
+        {
+            placingDrain = true;
+            btnPlaceDrain.Enabled = false;
         }
 
         private void BtnReset_Click(object sender, EventArgs e)
         {
-            // сброс плиток
-            foreach (var t in tiles)
-            {
-                t.waterAmount = 0;
-                t.flooded = false;
-            }
-
-            // очистка всех частиц
-            pump.Clear();
-
-            // сброс прогресса
-            score = 0;
-            lblScore.Text = "Счёт: 0";
-            prgWaterLevel.Value = 0;
-            lblWaterPercent.Text = "0%";
-
-            // рестарт времени
-            gameClock.Restart();
-            timer1.Start();
-        }
-
-        private void TrkAngle_Scroll(object sender, EventArgs e)
-        {
-            pump.Direction = trkAngle.Value;
-            lblAngleValue.Text = trkAngle.Value.ToString();
-        }
-
-        private void TrkPower_Scroll(object sender, EventArgs e)
-        {
-            pump.ParticlesPerTick = trkPower.Value;
-            lblPowerValue.Text = trkPower.Value.ToString();
-        }
-
-        private void CheckGameOver()
-        {
-            // координаты насоса попадают в плитку
-            int ix = Math.Min(cols - 1, Math.Max(0, pump.X * cols / picDisplay.Width));
-            int iy = Math.Min(rows - 1, Math.Max(0, pump.Y * rows / picDisplay.Height));
-
-            if (tiles[ix, iy].flooded)
-            {
-                timer1.Stop();
-                gameClock.Stop();
-                var dr = MessageBox.Show(
-                    "Вода добралась до насоса!\nИгра окончена.\nЗапустить заново?",
-                    "Game Over",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning
-                );
-                if (dr == DialogResult.Yes)
-                    BtnReset_Click(null, null);
-                else
-                    Close();
-            }
+            timer1.Stop();
+            StartGame();
         }
     }
 }

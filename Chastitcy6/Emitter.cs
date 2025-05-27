@@ -4,93 +4,66 @@ using System.Drawing;
 
 namespace Chastitcy6
 {
-    /// <summary>
-    /// базовый эмиттер частиц
-    /// </summary>
     public class Emitter
     {
-        // точки воздействия на частицы (гравитоны, шлюзы и т.п.)
-        public List<IImpactPoint> impactPoints = new List<IImpactPoint>();
-
-        // внутренний список частиц
         protected List<Particle> particles = new List<Particle>();
-
-        // генератор случайных чисел
+        protected List<DrainPoint> drains = new List<DrainPoint>();
         private static readonly Random rand = new Random();
 
-        // --- настраиваемые параметры эмиттера ---
-        public int X, Y;                      // положение «насоса»
-        public int Direction = -90;           // направление потока (градусы)
-        public int Spreading = 30;           // разброс углов
-        public int SpeedMin = 5;            // минимальная скорость
-        public int SpeedMax = 8;            // максимальная скорость
-        public int RadiusMin = 2;            // минимальный радиус частицы
-        public int RadiusMax = 6;            // максимальный радиус
-        public int LifeMin = 30;           // минимальная «жизнь»
-        public int LifeMax = 80;           // максимальная «жизнь»
-        public int ParticlesPerTick = 20;     // квота частиц на тик
-        public Color ColorFrom = Color.LightBlue;
-        public Color ColorTo = Color.Blue;
+        public int X, Y;
+        public int Direction = 90, Spreading = 30;
+        public int SpeedMin = 2, SpeedMax = 8;
+        public int RadiusMin = 2, RadiusMax = 6;
+        public int LifeMin = 30, LifeMax = 80;
+        public int BaseParticles = 5;
 
-        /// <summary>
-        /// создаёт новую цветную частицу
-        /// </summary>
+        public bool PumpOn = false;
+        public float Overheat = 0f, OverheatMax = 100f;
+        public float OverheatRate = 1f, CoolRate = 0.5f;
+
         public virtual Particle CreateParticle()
         {
-            var p = new ParticleColorful();
-            p.FromColor = ColorFrom;
-            p.ToColor = ColorTo;
-            return p;
+            return new ParticleColorful();
         }
 
-        /// <summary>
-        /// «воскрешает» частицу в центре эмиттера
-        /// </summary>
         public void ResetParticle(Particle p)
         {
             p.Life = rand.Next(LifeMin, LifeMax);
-            p.X = X;
-            p.Y = Y;
-            double ang = Direction + rand.Next(Spreading) - Spreading / 2.0;
+            p.X = X; p.Y = Y;
+            double rad = (Direction + rand.Next(Spreading) - Spreading / 2.0) * Math.PI / 180.0;
             float speed = rand.Next(SpeedMin, SpeedMax);
-            p.SpeedX = (float)(Math.Cos(ang * Math.PI / 180) * speed);
-            p.SpeedY = (float)(-Math.Sin(ang * Math.PI / 180) * speed);
+            p.SpeedX = (float)(Math.Cos(rad) * speed);
+            p.SpeedY = -(float)(Math.Sin(rad) * speed);
             p.Radius = rand.Next(RadiusMin, RadiusMax);
         }
 
-        /// <summary>
-        /// базовое обновление: двигаем, применяем точки воздействия, создаём/воскрешаем
-        /// </summary>
         public virtual void UpdateState()
         {
-            int quota = ParticlesPerTick;
+            // Handle overheat
+            if (PumpOn && Overheat < OverheatMax)
+                Overheat += OverheatRate;
+            else if (!PumpOn && Overheat > 0)
+                Overheat = System.Math.Max(0, Overheat - CoolRate);
 
-            // 1) обновляем существующие
-            foreach (var p in particles)
+            if (Overheat >= OverheatMax) PumpOn = false;
+
+            int toCreate = PumpOn ? BaseParticles + (int)(Overheat / 10) : 0;
+
+            for (int i = 0; i < particles.Count; i++)
             {
+                var p = particles[i];
                 if (p.Life <= 0)
                 {
-                    if (quota > 0)
-                    {
-                        quota--;
-                        ResetParticle(p);
-                    }
+                    if (toCreate-- > 0) ResetParticle(p);
                 }
                 else
                 {
-                    // применяем все «гравитоны» и т.п.
-                    foreach (var ip in impactPoints)
-                        ip.ImpactParticle(p);
-
-                    // двигаем
-                    p.X += p.SpeedX;
-                    p.Y += p.SpeedY;
+                    p.X += p.SpeedX; p.Y += p.SpeedY;
                     p.Life--;
                 }
             }
 
-            // 2) создаём новых, если осталась квота
-            while (quota-- > 0)
+            while (toCreate-- > 0)
             {
                 var p = CreateParticle();
                 ResetParticle(p);
@@ -98,23 +71,12 @@ namespace Chastitcy6
             }
         }
 
-        /// <summary>
-        /// очищает все частицы
-        /// </summary>
-        public void Clear()
-        {
-            particles.Clear();
-        }
+        public void AddDrain(DrainPoint dp) => drains.Add(dp);
 
-        /// <summary>
-        /// рисует частицы и все точки воздействия
-        /// </summary>
         public void Render(Graphics g)
         {
-            foreach (var p in particles)
-                p.Draw(g);
-            foreach (var ip in impactPoints)
-                ip.Render(g);
+            foreach (var d in drains) d.Render(g);
+            foreach (var p in particles) p.Draw(g);
         }
     }
 }
