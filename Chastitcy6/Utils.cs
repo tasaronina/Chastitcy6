@@ -1,4 +1,5 @@
-﻿using System;
+﻿// Utils.cs
+using System;
 
 namespace Chastitcy6
 {

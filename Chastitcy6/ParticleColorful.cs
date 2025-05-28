@@ -1,4 +1,5 @@
-﻿using System;
+﻿// ParticleColorful.cs
+using System;
 using System.Drawing;
 
 namespace Chastitcy6

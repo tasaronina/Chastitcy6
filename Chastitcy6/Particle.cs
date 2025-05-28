@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿// Particle.cs
+using System.Drawing;
 
 namespace Chastitcy6
 {

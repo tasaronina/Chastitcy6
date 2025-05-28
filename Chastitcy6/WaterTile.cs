@@ -7,6 +7,7 @@ namespace Chastitcy6
         public Rectangle area;
         public int waterAmount;
         public bool flooded;
+        public float FrozenUntil;    // время, до которого заморожена
 
         public void Update(int threshold)
         {
@@ -14,21 +15,31 @@ namespace Chastitcy6
                 flooded = true;
         }
 
-        public void Render(Graphics g)
+        // Теперь принимает текущее игровое время
+        public void Render(Graphics g, float currentTime)
         {
-            if (waterAmount > 0)
+            if (currentTime < FrozenUntil)
             {
-                int alpha = System.Math.Min(waterAmount * 2, 200);
-                using (var brush = new SolidBrush(Color.FromArgb(alpha, 0, 100, 255)))
-                {
+                // заморожена — рисуем почти белую плитку
+                using (var brush = new SolidBrush(Color.FromArgb(200, Color.White)))
                     g.FillRectangle(brush, area);
-                }
+            }
+            else if (flooded)
+            {
+                // затоплена
+                using (var brush = new SolidBrush(Color.FromArgb(100, Color.Blue)))
+                    g.FillRectangle(brush, area);
+            }
+            else if (waterAmount > 0)
+            {
+                // просто влажная
+                using (var brush = new SolidBrush(Color.FromArgb(50, Color.LightBlue)))
+                    g.FillRectangle(brush, area);
             }
 
-            if (flooded)
-            {
-                g.DrawRectangle(Pens.Blue, area);
-            }
+            // рамка плитки
+            using (var pen = new Pen(Color.DarkBlue, 1))
+                g.DrawRectangle(pen, area);
         }
     }
 }

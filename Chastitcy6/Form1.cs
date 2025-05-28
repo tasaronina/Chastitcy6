@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace Chastitcy6
@@ -8,77 +9,73 @@ namespace Chastitcy6
     {
         private PumpEmitter emitter;
         private bool placingDrain;
-        private readonly Image bg = Properties.Resources.Kvartira;
+        private float elapsed;
+        private int score;
 
-        private int score = 0;
-        private float elapsed = 0f;
-        private const float winTime = 60f;
-        private const float loseThreshold = 0.7f;
+        private int hammerCount = 0, cryoCount = 0;
+        private bool useHammerMode = false, useCryoMode = false;
+
+        private const float winTime = 70f, loseThreshold = 0.5f;
+        private readonly Image bg = Properties.Resources.Kvartira;
 
         public Form1()
         {
             InitializeComponent();
+
+            lblFlowSpeed.Text = $"Скорость потока: {trkFlowSpeed.Value}";
             StartGame();
         }
 
         private void StartGame()
         {
+            timer1.Stop();
+            score = 0; elapsed = 0f;
             placingDrain = false;
-            score = 0;
-            elapsed = 0f;
+            hammerCount = cryoCount = 0;
+            useHammerMode = useCryoMode = false;
+            UpdateBuffUI();
 
-            emitter = new PumpEmitter(picDisplay.Width, picDisplay.Height, 20);
+            emitter = new PumpEmitter(picDisplay.Width, picDisplay.Height, 20)
+            {
+                FlowRate = trkFlowSpeed.Value
+            };
 
-            // Начальное состояние UI
-            btnPumpToggle.Text = "Запустить насос";
-            lblScore.Text = "Счёт: 0";
-            lblTime.Text = "Время: 0";
-            lblWaterPercent.Text = "0%";
-            lblOverheat.Text = "Перегрев: 0";
             prgWater.Value = 0;
-            prgOverheat.Value = 0;
+            lblWaterPercent.Text = "0%";
+            lblTime.Text = "Время: 0";
+            lblScore.Text = "Счёт: 0";
 
             timer1.Start();
         }
 
         private void Timer1_Tick(object sender, EventArgs e)
         {
-            elapsed += timer1.Interval / 1000f;
+            float dt = timer1.Interval / 1000f;
+            elapsed += dt;
             lblTime.Text = $"Время: {elapsed:0.0}";
 
-            int prevFlooded = CountFlooded();
+            int prevFlood = CountFlooded();
+            emitter.UpdateState(dt);
+            int newFlood = CountFlooded() - prevFlood;
+            score -= newFlood;
 
-            emitter.UpdateState();
-
-            int newFlooded = CountFlooded() - prevFlooded;
-            score -= newFlooded;
-
-            // Вода
-            int total = emitter.cols * emitter.rows;
-            int flooded = CountFlooded();
-            float level = flooded / (float)total;
-            prgWater.Value = (int)(level * 100);
-            lblWaterPercent.Text = prgWater.Value + "%";
-
-            // Перегрев
-            float ore = emitter.Overheat;
-            prgOverheat.Value = (int)(ore / emitter.OverheatMax * 100);
-            lblOverheat.Text = $"Перегрев: {ore:0}";
-
-            // Счёт
+            float level = CountFlooded() / (float)(emitter.cols * emitter.rows);
+            int perc = (int)(level * 100);
+            prgWater.Value = Math.Min(Math.Max(perc, 0), 100);
+            lblWaterPercent.Text = $"{prgWater.Value}%";
             lblScore.Text = $"Счёт: {score}";
 
-            // Победа/поражение
-            if (level > loseThreshold)
-            {
-                timer1.Stop();
-                MessageBox.Show("Поражение: квартира затоплена", "Game Over", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
             if (elapsed >= winTime)
             {
                 timer1.Stop();
-                MessageBox.Show($"Победа! Вы выжили {winTime} сек.", "You Win", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                string caption = level <= loseThreshold ? "You Win" : "Game Over";
+                MessageBoxIcon icon = level <= loseThreshold ? MessageBoxIcon.Information : MessageBoxIcon.Warning;
+                MessageBox.Show(
+                    level <= loseThreshold
+                        ? $"Победа! Затоплено {level * 100:0}% плиток."
+                        : $"Поражение: затоплено {level * 100:0}% плиток.",
+                    caption, MessageBoxButtons.OK, icon
+                );
                 return;
             }
 
@@ -93,6 +90,14 @@ namespace Chastitcy6
             return cnt;
         }
 
+        private void UpdateBuffUI()
+        {
+            lblHammerCount.Text = $"Молотков: {hammerCount}";
+            btnUseHammer.Enabled = hammerCount > 0;
+            lblCryoCount.Text = $"Крио: {cryoCount}";
+            btnUseCryo.Enabled = cryoCount > 0;
+        }
+
         private void PicDisplay_Paint(object sender, PaintEventArgs e)
         {
             var g = e.Graphics;
@@ -101,25 +106,78 @@ namespace Chastitcy6
             else
                 g.Clear(Color.White);
 
-            foreach (var t in emitter.tiles)
-                t.Render(g);
-
             emitter.Render(g);
         }
 
         private void PicDisplay_MouseClick(object sender, MouseEventArgs e)
         {
-            if (!placingDrain) return;
-            var dp = new DrainPoint { X = e.X, Y = e.Y };
-            emitter.AddDrain(dp);
-            placingDrain = false;
-            btnPlaceDrain.Enabled = true;
+            // 1) Размещение дренажа
+            if (placingDrain)
+            {
+                emitter.AddDrain(new DrainPoint { X = e.X, Y = e.Y });
+                placingDrain = false;
+                btnPlaceDrain.Enabled = true;
+                return;
+            }
+
+            // 2) Сбор баффа
+            var buff = emitter.BuffPoints.FirstOrDefault(b => b.HitTest(e.X, e.Y));
+            if (buff != null)
+            {
+                if (buff.Type == BuffType.Hammer) hammerCount++;
+                else cryoCount++;
+
+                UpdateBuffUI();
+                emitter.BuffPoints
+                       .Cast<BuffPoint>()
+                       .ToList()
+                       .Remove(buff);   // убираем из списка напрямую
+                return;
+            }
+
+            // 3) Использование молотка
+            if (useHammerMode)
+            {
+                emitter.ClearLeaksAt(e.X, e.Y, 100f);
+                useHammerMode = false;
+                return;
+            }
+
+            // 4) Использование крио
+            if (useCryoMode)
+            {
+                // заморозить плитки
+                foreach (var t in emitter.tiles)
+                    t.FrozenUntil = emitter.GameTime + 5f;
+                useCryoMode = false;
+                return;
+            }
         }
 
-        private void BtnPumpToggle_Click(object sender, EventArgs e)
+        private void BtnUseHammer_Click(object sender, EventArgs e)
         {
-            emitter.PumpOn = !emitter.PumpOn;
-            btnPumpToggle.Text = emitter.PumpOn ? "Остановить насос" : "Запустить насос";
+            if (hammerCount > 0)
+            {
+                hammerCount--;
+                useHammerMode = true;
+                UpdateBuffUI();
+            }
+        }
+
+        private void BtnUseCryo_Click(object sender, EventArgs e)
+        {
+            if (cryoCount > 0)
+            {
+                cryoCount--;
+                useCryoMode = true;
+                UpdateBuffUI();
+            }
+        }
+
+        private void TrkFlowSpeed_Scroll(object sender, EventArgs e)
+        {
+            emitter.FlowRate = trkFlowSpeed.Value;
+            lblFlowSpeed.Text = $"Скорость потока: {emitter.FlowRate}";
         }
 
         private void BtnPlaceDrain_Click(object sender, EventArgs e)
@@ -130,7 +188,6 @@ namespace Chastitcy6
 
         private void BtnReset_Click(object sender, EventArgs e)
         {
-            timer1.Stop();
             StartGame();
         }
     }
